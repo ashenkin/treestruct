@@ -37,19 +37,19 @@ check_cylfile_internode_order <- function(tree_structure) {
     return(good_order)
 }
 
-Rcpp::cppFunction('
-              NumericVector calc_sa_above_cpp(NumericVector sa, NumericVector parentrow) {
-              int n = sa.size();
-              NumericVector cum;
-              cum = clone(sa);
-
-              // accumulate all internodes above downwards from tips.  relies on row order being correct.
-              for(int i = n - 1; i > 0; i--) {
-                  cum[ (parentrow[i] - 1) ] += cum[ i ];  // -1 since C is zero-based
-              }
-
-              return cum;
-              }' )
+# Rcpp::cppFunction('
+#               NumericVector calc_sa_above_cpp(NumericVector sa, NumericVector parentrow) {
+#               int n = sa.size();
+#               NumericVector cum;
+#               cum = clone(sa);
+#
+#               // accumulate all internodes above downwards from tips.  relies on row order being correct.
+#               for(int i = n - 1; i > 0; i--) {
+#                   cum[ (parentrow[i] - 1) ] += cum[ i ];  // -1 since C is zero-based
+#               }
+#
+#               return cum;
+#               }' )
 
 #' @title FUNCTION_TITLE
 #' @description FUNCTION_DESCRIPTION
@@ -74,22 +74,22 @@ calc_sa_above <- function(tree_structure) {
     return(tree_structure)
 }
 
-# from https://stackoverflow.com/questions/46368188/how-to-efficiently-calculate-path-lengths-in-tree-topology/46369457#46369457
-Rcpp::cppFunction('
-                  NumericVector calc_pathlen_cpp(NumericVector len, NumericVector idx){
-                  int n = len.size();
-                  NumericVector res(n);
-                  double cumsum=0;
-                  int j;
-                  res[0] = len[0];
-
-                  for(int i = 1; i < n; i++){
-                  j = idx[ i ] - 1;
-                  cumsum = res[ j ] + len[ i ];
-                  res[ i ] = cumsum;
-                  }
-                  return res;
-                  }' )
+# # from https://stackoverflow.com/questions/46368188/how-to-efficiently-calculate-path-lengths-in-tree-topology/46369457#46369457
+# Rcpp::cppFunction('
+#                   NumericVector calc_pathlen_cpp(NumericVector len, NumericVector idx){
+#                   int n = len.size();
+#                   NumericVector res(n);
+#                   double cumsum=0;
+#                   int j;
+#                   res[0] = len[0];
+#
+#                   for(int i = 1; i < n; i++){
+#                   j = idx[ i ] - 1;
+#                   cumsum = res[ j ] + len[ i ];
+#                   res[ i ] = cumsum;
+#                   }
+#                   return res;
+#                   }' )
 
 #' @title calc_pathlen
 #' @description Wrapper for C++ pathlength code
@@ -317,20 +317,19 @@ analyze_cyl_file <- function(cyl_file, calc_sapwood = T, sapwood_depth = 2) {
 process_qsm_dir <- function(qsm_path = ".", parallel_process = T, cyl_file_pat = "cyl.*.txt", recursive = F, file_batching = 0) {
     # rip through a directory, run analyze_cyl_file on all the qsm's
     # file_batching will process a number of files at a time, largely for debugging purposes.  Set to 0 for no batching.
-
+warning(getwd())
     #TODO add progress bar
     lidar_trees = list()
     cyl_files = list.files(qsm_path, pattern = cyl_file_pat, full.names = T, recursive = recursive)
-
+warning(paste("cyl file len: ",length(cyl_files)))
     if (parallel_process) {
         clust <- makeCluster(max(1, detectCores() - 1))
-        clusterEvalQ(clust, source(here::here("TLS_functions.r")))
         registerDoParallel(clust)
         if (file_batching != 0) {
             cyl_batches = split(cyl_files, ceiling(seq_along(cyl_files)/file_batching))
             for (this_batch in cyl_batches) {
                 print(paste("processing", this_batch))
-                this_lidar_trees = foreach (i = 1:length(this_batch)) %dopar% {
+                this_lidar_trees = foreach (i = 1:length(this_batch), .packages = c("treestruct", "dplyr")) %dopar% {
                     analyze_cyl_file(this_batch[i])
                 }
                 names(this_lidar_trees) = basename(this_batch)
@@ -338,7 +337,7 @@ process_qsm_dir <- function(qsm_path = ".", parallel_process = T, cyl_file_pat =
             }
             rm(this_lidar_trees)
         } else {
-            lidar_trees = foreach (i = 1:length(cyl_files)) %dopar% {
+            lidar_trees = foreach (i = 1:length(cyl_files), .packages = c("treestruct", "dplyr")) %dopar% {
                 analyze_cyl_file(cyl_files[i])
             }
             names(lidar_trees) = basename(cyl_files)
@@ -375,7 +374,7 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
 
     # Concatenate and further process analyzed QSMs
     # lidar_trees is a list, and must have the following fields populated in each element:
-    # tree, qsm_tree_num, replicate, and qsm_setting
+    # tree, qsm_idx, replicate, and qsm_setting
 
     first_run = T
     for (lidar_tree in names(lidar_trees)) {
@@ -385,28 +384,28 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
             surf_area_per_order_tot = this_tree[["surf_area_per_order"]]
             surf_area_per_order_tot$lidar_tree = lidar_tree
             surf_area_per_order_tot$tree = this_tree$tree
-            surf_area_per_order_tot$qsm_tree_num = this_tree$qsm_tree_num
+            surf_area_per_order_tot$qsm_idx = this_tree$qsm_idx
             surf_area_per_order_tot$replicate = this_tree$replicate
             surf_area_per_order_tot$qsm_setting = this_tree$qsm_setting
 
             surf_area_per_diam_class_tot = this_tree[["surf_area_per_diam_class"]]
             surf_area_per_diam_class_tot$lidar_tree = lidar_tree
             surf_area_per_diam_class_tot$tree = this_tree$tree
-            surf_area_per_diam_class_tot$qsm_tree_num = this_tree$qsm_tree_num
+            surf_area_per_diam_class_tot$qsm_idx = this_tree$qsm_idx
             surf_area_per_diam_class_tot$replicate = this_tree$replicate
             surf_area_per_diam_class_tot$qsm_setting = this_tree$qsm_setting
 
             Astem_lidar_chambers_2004_tot = data.frame("lidar_tree" = lidar_tree,
                                                        "tree" = this_tree$tree,
                                                        "Astem" = as.numeric(this_tree[["Astem_lidar_chambers_2004"]][2]),   # TODO fix this (??)
-                                                       "qsm_tree_num" = this_tree$qsm_tree_num,
+                                                       "qsm_idx" = this_tree$qsm_idx,
                                                        "replicate" = this_tree$replicate,
                                                        "qsm_setting" = this_tree$qsm_setting)
 
             mean_path_len_tot = data.frame("lidar_tree" = lidar_tree,
                                            "tree" = this_tree$tree,
                                            "mean_path_len" = this_tree$mean_path_len,
-                                           "qsm_tree_num" = this_tree$qsm_tree_num,
+                                           "qsm_idx" = this_tree$qsm_idx,
                                            "replicate" = this_tree$replicate,
                                            "qsm_setting" = this_tree$qsm_setting)
 
@@ -414,21 +413,21 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
                                 "tree" = this_tree$tree,
                                 "sw_vol_area_pres" = this_tree[["sapwood_vol"]]$area_pres,
                                 "sw_vol_const_total" = this_tree[["sapwood_vol"]]$sw_vol_const_total,
-                                "qsm_tree_num" = this_tree$qsm_tree_num,
+                                "qsm_idx" = this_tree$qsm_idx,
                                 "replicate" = this_tree$replicate,
                                 "qsm_setting" = this_tree$qsm_setting)
 
             sw_vol_const_per_order_tot = this_tree[["sapwood_vol"]][["sw_vol_const_per_order"]]
             sw_vol_const_per_order_tot$lidar_tree = lidar_tree
             sw_vol_const_per_order_tot$tree = this_tree$tree
-            sw_vol_const_per_order_tot$qsm_tree_num = this_tree$qsm_tree_num
+            sw_vol_const_per_order_tot$qsm_idx = this_tree$qsm_idx
             sw_vol_const_per_order_tot$replicate = this_tree$replicate
             sw_vol_const_per_order_tot$qsm_setting = this_tree$qsm_setting
 
             sw_vol_const_per_diam_class_tot = this_tree[["sapwood_vol"]][["sw_vol_const_per_diam_class"]]
             sw_vol_const_per_diam_class_tot$lidar_tree = lidar_tree
             sw_vol_const_per_diam_class_tot$tree = this_tree$tree
-            sw_vol_const_per_diam_class_tot$qsm_tree_num = this_tree$qsm_tree_num
+            sw_vol_const_per_diam_class_tot$qsm_idx = this_tree$qsm_idx
             sw_vol_const_per_diam_class_tot$replicate = this_tree$replicate
             sw_vol_const_per_diam_class_tot$qsm_setting = this_tree$qsm_setting
 
@@ -447,7 +446,7 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
             this_surf_area = this_tree[["surf_area_per_order"]]
             this_surf_area$lidar_tree = lidar_tree
             this_surf_area$tree = this_tree$tree
-            this_surf_area$qsm_tree_num = this_tree$qsm_tree_num
+            this_surf_area$qsm_idx = this_tree$qsm_idx
             this_surf_area$replicate = this_tree$replicate
             this_surf_area$qsm_setting = this_tree$qsm_setting
             surf_area_per_order_tot = rbind(surf_area_per_order_tot, this_surf_area)
@@ -455,7 +454,7 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
             this_surf_area = this_tree[["surf_area_per_diam_class"]]
             this_surf_area$lidar_tree = lidar_tree
             this_surf_area$tree = this_tree$tree
-            this_surf_area$qsm_tree_num = this_tree$qsm_tree_num
+            this_surf_area$qsm_idx = this_tree$qsm_idx
             this_surf_area$replicate = this_tree$replicate
             this_surf_area$qsm_setting = this_tree$qsm_setting
             surf_area_per_diam_class_tot = rbind(surf_area_per_diam_class_tot, this_surf_area)
@@ -463,7 +462,7 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
             this_Astem = data.frame("lidar_tree" = lidar_tree,
                                     "tree" = this_tree$tree,
                                     "Astem" = as.numeric(this_tree[["Astem_lidar_chambers_2004"]][2]),
-                                    "qsm_tree_num" = this_tree$qsm_tree_num,
+                                    "qsm_idx" = this_tree$qsm_idx,
                                     "replicate" = this_tree$replicate,
                                     "qsm_setting" = this_tree$qsm_setting)
             Astem_lidar_chambers_2004_tot = rbind(Astem_lidar_chambers_2004_tot, this_Astem)
@@ -471,7 +470,7 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
             this_mean_path_len = data.frame("lidar_tree" = lidar_tree,
                                             "tree" = this_tree$tree,
                                             "mean_path_len" = this_tree$mean_path_len,
-                                            "qsm_tree_num" = this_tree$qsm_tree_num,
+                                            "qsm_idx" = this_tree$qsm_idx,
                                             "replicate" = this_tree$replicate,
                                             "qsm_setting" = this_tree$qsm_setting)
             mean_path_len_tot = rbind(mean_path_len_tot, this_mean_path_len)
@@ -480,7 +479,7 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
                                                "tree" = this_tree$tree,
                                                "sw_vol_area_pres" = this_tree[["sapwood_vol"]]$area_pres,
                                                "sw_vol_const_total" = this_tree[["sapwood_vol"]]$sw_vol_const_total,
-                                               "qsm_tree_num" = this_tree$qsm_tree_num,
+                                               "qsm_idx" = this_tree$qsm_idx,
                                                "replicate" = this_tree$replicate,
                                                "qsm_setting" = this_tree$qsm_setting)
             sw_vol = rbind(sw_vol, this_sw_vol_area_pres)
@@ -488,7 +487,7 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
             this_sw_vol_const = this_tree[["sapwood_vol"]][["sw_vol_const_per_order"]]
             this_sw_vol_const$lidar_tree = lidar_tree
             this_sw_vol_const$tree = this_tree$tree
-            this_sw_vol_const$qsm_tree_num = this_tree$qsm_tree_num
+            this_sw_vol_const$qsm_idx = this_tree$qsm_idx
             this_sw_vol_const$replicate = this_tree$replicate
             this_sw_vol_const$qsm_setting = this_tree$qsm_setting
             sw_vol_const_per_order_tot = rbind(sw_vol_const_per_order_tot, this_sw_vol_const)
@@ -496,7 +495,7 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
             this_sw_vol_const = this_tree[["sapwood_vol"]][["sw_vol_const_per_diam_class"]]
             this_sw_vol_const$lidar_tree = lidar_tree
             this_sw_vol_const$tree = this_tree$tree
-            this_sw_vol_const$qsm_tree_num = this_tree$qsm_tree_num
+            this_sw_vol_const$qsm_idx = this_tree$qsm_idx
             this_sw_vol_const$replicate = this_tree$replicate
             this_sw_vol_const$qsm_setting = this_tree$qsm_setting
             sw_vol_const_per_diam_class_tot = rbind(sw_vol_const_per_diam_class_tot, this_sw_vol_const)
@@ -579,7 +578,7 @@ concat_lidar_trees_parallel <- function(lidar_trees, pick_qsm = F, best_qsm = ""
 
     # Concatenate and further process analyzed QSMs
     # lidar_trees is a list, and must have the following fields populated in each element:
-    # tree, qsm_tree_num, replicate, and qsm_setting
+    # tree, qsm_idx, replicate, and qsm_setting
 
     list_of_dfs = foreach (lidar_tree = names(lidar_trees)) %dopar% {
 
@@ -588,28 +587,28 @@ concat_lidar_trees_parallel <- function(lidar_trees, pick_qsm = F, best_qsm = ""
         surf_area_per_order_tot = this_tree[["surf_area_per_order"]]
         surf_area_per_order_tot$lidar_tree = lidar_tree
         surf_area_per_order_tot$tree = this_tree$tree
-        surf_area_per_order_tot$qsm_tree_num = this_tree$qsm_tree_num
+        surf_area_per_order_tot$qsm_idx = this_tree$qsm_idx
         surf_area_per_order_tot$replicate = this_tree$replicate
         surf_area_per_order_tot$qsm_setting = this_tree$qsm_setting
 
         surf_area_per_diam_class_tot = this_tree[["surf_area_per_diam_class"]]
         surf_area_per_diam_class_tot$lidar_tree = lidar_tree
         surf_area_per_diam_class_tot$tree = this_tree$tree
-        surf_area_per_diam_class_tot$qsm_tree_num = this_tree$qsm_tree_num
+        surf_area_per_diam_class_tot$qsm_idx = this_tree$qsm_idx
         surf_area_per_diam_class_tot$replicate = this_tree$replicate
         surf_area_per_diam_class_tot$qsm_setting = this_tree$qsm_setting
 
         Astem_lidar_chambers_2004_tot = data.frame("lidar_tree" = lidar_tree,
                                                    "tree" = this_tree$tree,
                                                    "Astem" = as.numeric(this_tree[["Astem_lidar_chambers_2004"]][2]),   # TODO fix this (??)
-                                                   "qsm_tree_num" = this_tree$qsm_tree_num,
+                                                   "qsm_idx" = this_tree$qsm_idx,
                                                    "replicate" = this_tree$replicate,
                                                    "qsm_setting" = this_tree$qsm_setting)
 
         mean_path_len_tot = data.frame("lidar_tree" = lidar_tree,
                                        "tree" = this_tree$tree,
                                        "mean_path_len" = this_tree$mean_path_len,
-                                       "qsm_tree_num" = this_tree$qsm_tree_num,
+                                       "qsm_idx" = this_tree$qsm_idx,
                                        "replicate" = this_tree$replicate,
                                        "qsm_setting" = this_tree$qsm_setting)
 
@@ -617,21 +616,21 @@ concat_lidar_trees_parallel <- function(lidar_trees, pick_qsm = F, best_qsm = ""
                             "tree" = this_tree$tree,
                             "sw_vol_area_pres" = this_tree[["sapwood_vol"]]$area_pres,
                             "sw_vol_const_total" = this_tree[["sapwood_vol"]]$sw_vol_const_total,
-                            "qsm_tree_num" = this_tree$qsm_tree_num,
+                            "qsm_idx" = this_tree$qsm_idx,
                             "replicate" = this_tree$replicate,
                             "qsm_setting" = this_tree$qsm_setting)
 
         sw_vol_const_per_order_tot = this_tree[["sapwood_vol"]][["sw_vol_const_per_order"]]
         sw_vol_const_per_order_tot$lidar_tree = lidar_tree
         sw_vol_const_per_order_tot$tree = this_tree$tree
-        sw_vol_const_per_order_tot$qsm_tree_num = this_tree$qsm_tree_num
+        sw_vol_const_per_order_tot$qsm_idx = this_tree$qsm_idx
         sw_vol_const_per_order_tot$replicate = this_tree$replicate
         sw_vol_const_per_order_tot$qsm_setting = this_tree$qsm_setting
 
         sw_vol_const_per_diam_class_tot = this_tree[["sapwood_vol"]][["sw_vol_const_per_diam_class"]]
         sw_vol_const_per_diam_class_tot$lidar_tree = lidar_tree
         sw_vol_const_per_diam_class_tot$tree = this_tree$tree
-        sw_vol_const_per_diam_class_tot$qsm_tree_num = this_tree$qsm_tree_num
+        sw_vol_const_per_diam_class_tot$qsm_idx = this_tree$qsm_idx
         sw_vol_const_per_diam_class_tot$replicate = this_tree$replicate
         sw_vol_const_per_diam_class_tot$qsm_setting = this_tree$qsm_setting
 
