@@ -4,8 +4,8 @@
 \alias{process_qsm_dir}
 \title{FUNCTION_TITLE}
 \usage{
-process_qsm_dir(qsm_path, parallel_process = T, cyl_file_pat = "cyl.*.txt",
-  recursive = F)
+process_qsm_dir(qsm_path = ".", parallel_process = T,
+  cyl_file_pat = "cyl.*.txt", recursive = F, file_batching = 0)
 }
 \arguments{
 \item{qsm_path}{PARAM_DESCRIPTION}

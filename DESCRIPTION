@@ -11,4 +11,7 @@ LazyData: true
 RoxygenNote: 6.0.1
 Imports:
   dplyr,
-  Rcpp
+  Rcpp,
+  doParallel,
+  foreach,
+  data.table
