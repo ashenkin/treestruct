@@ -404,6 +404,7 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
 
             tree_data = data.frame(tag = this_tree$tree,
                                    lidar_tree = lidar_tree,
+                                   qsm_idx = this_tree$qsm_idx,
                                    dbh = this_tree$DBH,
                                    pom = this_tree$POM,
                                    height = this_tree$height,
@@ -473,6 +474,7 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
 
             this_tree_data = data.frame(tag = this_tree$tree,
                                         lidar_tree = lidar_tree,
+                                        qsm_idx = this_tree$qsm_idx,
                                         dbh = this_tree$DBH,
                                         pom = this_tree$POM,
                                         height = this_tree$height,
