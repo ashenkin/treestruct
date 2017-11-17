@@ -37,20 +37,6 @@ check_cylfile_internode_order <- function(tree_structure) {
     return(good_order)
 }
 
-# Rcpp::cppFunction('
-#               NumericVector calc_sa_above_cpp(NumericVector sa, NumericVector parentrow) {
-#               int n = sa.size();
-#               NumericVector cum;
-#               cum = clone(sa);
-#
-#               // accumulate all internodes above downwards from tips.  relies on row order being correct.
-#               for(int i = n - 1; i > 0; i--) {
-#                   cum[ (parentrow[i] - 1) ] += cum[ i ];  // -1 since C is zero-based
-#               }
-#
-#               return cum;
-#               }' )
-
 #' @title FUNCTION_TITLE
 #' @description FUNCTION_DESCRIPTION
 #' @param tree_structure PARAM_DESCRIPTION
@@ -73,23 +59,6 @@ calc_sa_above <- function(tree_structure) {
     tree_structure$sa_above = calc_sa_above_cpp(tree_structure$surf_area, tree_structure$parent_row)
     return(tree_structure)
 }
-
-# # from https://stackoverflow.com/questions/46368188/how-to-efficiently-calculate-path-lengths-in-tree-topology/46369457#46369457
-# Rcpp::cppFunction('
-#                   NumericVector calc_pathlen_cpp(NumericVector len, NumericVector idx){
-#                   int n = len.size();
-#                   NumericVector res(n);
-#                   double cumsum=0;
-#                   int j;
-#                   res[0] = len[0];
-#
-#                   for(int i = 1; i < n; i++){
-#                   j = idx[ i ] - 1;
-#                   cumsum = res[ j ] + len[ i ];
-#                   res[ i ] = cumsum;
-#                   }
-#                   return res;
-#                   }' )
 
 #' @title calc_pathlen
 #' @description Wrapper for C++ pathlength code
@@ -317,11 +286,11 @@ analyze_cyl_file <- function(cyl_file, calc_sapwood = T, sapwood_depth = 2) {
 process_qsm_dir <- function(qsm_path = ".", parallel_process = T, cyl_file_pat = "cyl.*.txt", recursive = F, file_batching = 0) {
     # rip through a directory, run analyze_cyl_file on all the qsm's
     # file_batching will process a number of files at a time, largely for debugging purposes.  Set to 0 for no batching.
-warning(getwd())
+
     #TODO add progress bar
     lidar_trees = list()
     cyl_files = list.files(qsm_path, pattern = cyl_file_pat, full.names = T, recursive = recursive)
-warning(paste("cyl file len: ",length(cyl_files)))
+
     if (parallel_process) {
         clust <- makeCluster(max(1, detectCores() - 1))
         registerDoParallel(clust)
