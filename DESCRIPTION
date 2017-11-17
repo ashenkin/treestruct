@@ -1,4 +1,4 @@
-Package: TreeStruct
+Package: treestruct
 Type: Package
 Title: Provides Functions (and eventually Classes) for Analysis and Manipulation of Tree Structure Models
 Version: 0.1.0
