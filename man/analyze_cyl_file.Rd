@@ -4,7 +4,7 @@
 \alias{analyze_cyl_file}
 \title{FUNCTION_TITLE}
 \usage{
-analyze_cyl_file(cyl_file, calc_sapwood = T, sapwood_depth = 2)
+analyze_cyl_file(cyl_file, calc_sapwood = T, sapwood_depth = 2, treeid)
 }
 \arguments{
 \item{cyl_file}{PARAM_DESCRIPTION}
@@ -12,6 +12,8 @@ analyze_cyl_file(cyl_file, calc_sapwood = T, sapwood_depth = 2)
 \item{calc_sapwood}{PARAM_DESCRIPTION, Default: T}
 
 \item{sapwood_depth}{PARAM_DESCRIPTION, Default: 2}
+
+\item{treeid}{identifier to use in outputs for this tree, Default: basename(cyl_file)}
 }
 \value{
 OUTPUT_DESCRIPTION

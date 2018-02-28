@@ -10,6 +10,7 @@ Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.0.1
 Imports:
+  magrittr,
   dplyr,
   Rcpp (>= 0.12.12),
   doParallel,

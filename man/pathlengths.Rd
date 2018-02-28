@@ -4,7 +4,7 @@
 \alias{pathlengths}
 \title{FUNCTION_TITLE}
 \usage{
-pathlengths(tree_structure, start_order, use_recurse_function = F)
+pathlengths(tree_structure, start_order)
 }
 \arguments{
 \item{tree_structure}{PARAM_DESCRIPTION}

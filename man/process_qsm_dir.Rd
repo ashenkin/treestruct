@@ -5,7 +5,8 @@
 \title{FUNCTION_TITLE}
 \usage{
 process_qsm_dir(qsm_path = ".", parallel_process = T,
-  cyl_file_pat = "cyl.*.txt", recursive = F, file_batching = 0)
+  cyl_file_pat = "cyl.*.txt", rename_pat = "", recursive = F,
+  file_batching = 0)
 }
 \arguments{
 \item{qsm_path}{PARAM_DESCRIPTION}
@@ -13,6 +14,8 @@ process_qsm_dir(qsm_path = ".", parallel_process = T,
 \item{parallel_process}{PARAM_DESCRIPTION, Default: T}
 
 \item{cyl_file_pat}{PARAM_DESCRIPTION, Default: 'cyl.*.txt'}
+
+\item{rename_pat}{Regex applied to filenames when naming ouput list elements (sub(rename_pat, '\\1', filename))}
 
 \item{recursive}{PARAM_DESCRIPTION, Default: F}
 }
