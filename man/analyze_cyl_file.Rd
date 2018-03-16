@@ -2,24 +2,28 @@
 % Please edit documentation in R/struct_funcs.r
 \name{analyze_cyl_file}
 \alias{analyze_cyl_file}
-\title{FUNCTION_TITLE}
+\title{analyze_cyl_file}
 \usage{
-analyze_cyl_file(cyl_file, calc_sapwood = T, sapwood_depth = 2, treeid)
+analyze_cyl_file(cyl_file, calc_sapwood = T, sapwood_depth = 2, treeid,
+  size_classes = c(0, 1, 3, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110,
+  120, 130, 140))
 }
 \arguments{
-\item{cyl_file}{PARAM_DESCRIPTION}
+\item{cyl_file}{path to file with the cylinder data}
 
-\item{calc_sapwood}{PARAM_DESCRIPTION, Default: T}
+\item{calc_sapwood}{Whether or not sapwood should be calculated, Default: T}
 
-\item{sapwood_depth}{PARAM_DESCRIPTION, Default: 2}
+\item{sapwood_depth}{Set assumed sapwood depth (cm) at the base of the tree, Default: 2}
 
 \item{treeid}{identifier to use in outputs for this tree, Default: basename(cyl_file)}
+
+\item{size_classes}{branch diameter size classes (cm) across which aggregated computations will be made, Default: c(0,1,3,5,10,20,30,40,50,60,70,80,90,100,110,120,130,140)}
 }
 \value{
-OUTPUT_DESCRIPTION
+a list of metrics and an updated tree structure dataframe with metrics appended to each row
 }
 \description{
-FUNCTION_DESCRIPTION
+Reads in a cyl file (which is usually created by treeqsm), and calculates path length, surface area, volume, and sapwood metrics.
 }
 \details{
 DETAILS

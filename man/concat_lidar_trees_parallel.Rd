@@ -2,7 +2,7 @@
 % Please edit documentation in R/struct_funcs.r
 \name{concat_lidar_trees_parallel}
 \alias{concat_lidar_trees_parallel}
-\title{FUNCTION_TITLE}
+\title{concat_lidar_trees_parallel}
 \usage{
 concat_lidar_trees_parallel(lidar_trees, pick_qsm = F, best_qsm = "")
 }
@@ -17,7 +17,7 @@ concat_lidar_trees_parallel(lidar_trees, pick_qsm = F, best_qsm = "")
 OUTPUT_DESCRIPTION
 }
 \description{
-FUNCTION_DESCRIPTION
+As concat_lidar_trees, but parallelized.
 }
 \details{
 DETAILS

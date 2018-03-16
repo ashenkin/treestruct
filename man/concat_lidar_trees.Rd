@@ -2,7 +2,7 @@
 % Please edit documentation in R/struct_funcs.r
 \name{concat_lidar_trees}
 \alias{concat_lidar_trees}
-\title{FUNCTION_TITLE}
+\title{concat_lidar_trees}
 \usage{
 concat_lidar_trees(lidar_trees, pick_qsm = F, best_qsm = "")
 }
@@ -17,7 +17,7 @@ concat_lidar_trees(lidar_trees, pick_qsm = F, best_qsm = "")
 OUTPUT_DESCRIPTION
 }
 \description{
-FUNCTION_DESCRIPTION
+Takes a list of analyzed cyl files (such as would be produced by process_qsm_dir) and assembles dataframes useful for analysis and plotting.
 }
 \details{
 DETAILS

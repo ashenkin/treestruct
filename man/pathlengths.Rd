@@ -10,8 +10,6 @@ pathlengths(tree_structure, start_order)
 \item{tree_structure}{PARAM_DESCRIPTION}
 
 \item{start_order}{PARAM_DESCRIPTION}
-
-\item{use_recurse_function}{PARAM_DESCRIPTION, Default: F}
 }
 \value{
 OUTPUT_DESCRIPTION

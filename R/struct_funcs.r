@@ -24,8 +24,6 @@ if(getRversion() >= "2.15.1") utils::globalVariables(c("."))
 #' @export
 Astem_chambers_2004 <- function(DBH) 10^(-0.105-0.686*log10(DBH)+2.208*(log10(DBH))^2-0.627*(log10(DBH))^3)
 
-# functions ####
-
 # Calc surface areas of and above each internode
 
 #' @title FUNCTION_TITLE
@@ -96,7 +94,6 @@ calc_pathlen <- function(tree_structure) {
 #' @description FUNCTION_DESCRIPTION
 #' @param tree_structure PARAM_DESCRIPTION
 #' @param start_order PARAM_DESCRIPTION
-#' @param use_recurse_function PARAM_DESCRIPTION, Default: F
 #' @return OUTPUT_DESCRIPTION
 #' @details DETAILS
 #' @examples
@@ -171,13 +168,18 @@ sapwood_volume <- function(lidar_tree, sapwood_depth = 2) {
   return(lidar_tree)
 }
 
-#' @title FUNCTION_TITLE
-#' @description FUNCTION_DESCRIPTION
-#' @param cyl_file PARAM_DESCRIPTION
-#' @param calc_sapwood PARAM_DESCRIPTION, Default: T
-#' @param sapwood_depth PARAM_DESCRIPTION, Default: 2
+
+# TODO: implement area-preserving (top-up and bottom-down) and dissipation-minimizing sapwood distribution algorithrms
+
+
+#' @title analyze_cyl_file
+#' @description Reads in a cyl file (which is usually created by treeqsm), and calculates path length, surface area, volume, and sapwood metrics.
+#' @param cyl_file path to file with the cylinder data
+#' @param calc_sapwood Whether or not sapwood should be calculated, Default: T
+#' @param sapwood_depth Set assumed sapwood depth (cm) at the base of the tree, Default: 2
 #' @param treeid identifier to use in outputs for this tree, Default: basename(cyl_file)
-#' @return OUTPUT_DESCRIPTION
+#' @param size_classes branch diameter size classes (cm) across which aggregated computations will be made, Default: c(0,1,3,5,10,20,30,40,50,60,70,80,90,100,110,120,130,140)
+#' @return a list of metrics and an updated tree structure dataframe with metrics appended to each row
 #' @details DETAILS
 #' @examples
 #' \dontrun{
@@ -187,7 +189,7 @@ sapwood_volume <- function(lidar_tree, sapwood_depth = 2) {
 #' }
 #' @rdname analyze_cyl_file
 #' @export
-analyze_cyl_file <- function(cyl_file, calc_sapwood = T, sapwood_depth = 2, treeid) {
+analyze_cyl_file <- function(cyl_file, calc_sapwood = T, sapwood_depth = 2, treeid, size_classes = c(0,1,3,5,10,20,30,40,50,60,70,80,90,100,110,120,130,140)) {
 
     if (missing(treeid)) treeid = basename(cyl_file)
 
@@ -223,8 +225,8 @@ analyze_cyl_file <- function(cyl_file, calc_sapwood = T, sapwood_depth = 2, tree
     surf_area_per_order$tree = treeid
 
     tree_structure$size_class = cut(tree_structure$rad*2*100, include.lowest = T, ordered_result = T,
-                                    labels = c(0, 1,2,5,10,20,30,40,50,60,70,80,90,100,110,120,130),
-                                    breaks = c(0,1,2,5,10,20,30,40,50,60,70,80,90,100,110,120,130,140))
+                                    labels = size_classes[-length(size_classes)],
+                                    breaks = size_classes)
     tree_structure$size_class = as.integer(as.character(tree_structure$size_class))
     surf_area_per_diam_class = tree_structure %>% group_by(size_class) %>% summarize(surf_area = sum(surf_area))
     #ddply(tree_structure, .(size_class), summarize, surf_area = sum(surf_area))
@@ -252,7 +254,7 @@ analyze_cyl_file <- function(cyl_file, calc_sapwood = T, sapwood_depth = 2, tree
 
     # From GEM manual, DBH in cm, resulting surface area in m^2
     DBH_cm = DBH*100
-    Astem_lidar_chambers_2004 = 10^(-0.105-0.686*log10(DBH_cm)+2.208*(log10(DBH_cm))^2-0.627*(log10(DBH_cm))^3)
+    Astem_lidar_chambers_2004 = Astem_chambers_2004(DBH_cm)
 
     print(paste("about to return analyzed file", cyl_file))
 
@@ -269,7 +271,7 @@ analyze_cyl_file <- function(cyl_file, calc_sapwood = T, sapwood_depth = 2, tree
                height = height)
 
     if (calc_sapwood) {
-        ret = sapwood_volume(ret)
+        ret = sapwood_volume(ret, sapwood_depth)
     }
 
     return(ret)
@@ -305,15 +307,16 @@ rename_tree <- function(name, regex, name_is_path = T) {
     }
 }
 
-#' @title FUNCTION_TITLE
-#' @description FUNCTION_DESCRIPTION
+#' @title process_qsm_dir
+#' @description Runs analyze_cyl_file on all files in a directory
 #' @param qsm_path PARAM_DESCRIPTION
 #' @param parallel_process PARAM_DESCRIPTION, Default: T
 #' @param cyl_file_pat PARAM_DESCRIPTION, Default: 'cyl.*.txt'
 #' @param rename_pat Regex applied to filenames when naming ouput list elements (sub(rename_pat, '\\1', filename))
 #' @param recursive PARAM_DESCRIPTION, Default: F
-#' @return OUTPUT_DESCRIPTION
-#' @details DETAILS
+#' @param file_batching Number of files to process per batch, or 0 to process all at once, Default: 0
+#' @return list, one element per cyl file, of outputs from analyze_cyl_file
+#' @details This routine provides a facility to name each element of the list based on the name of the corresponding cyl file.  Use rename_pat parameter to customize the renaming.  File batching can be used to avoid memory errors, etc
 #' @examples
 #' \dontrun{
 #' if(interactive()){
@@ -363,8 +366,8 @@ process_qsm_dir <- function(qsm_path = ".", parallel_process = T,
 }
 
 
-#' @title FUNCTION_TITLE
-#' @description FUNCTION_DESCRIPTION
+#' @title concat_lidar_trees
+#' @description Takes a list of analyzed cyl files (such as would be produced by process_qsm_dir) and assembles dataframes useful for analysis and plotting.
 #' @param lidar_trees PARAM_DESCRIPTION
 #' @param pick_qsm PARAM_DESCRIPTION, Default: F
 #' @param best_qsm PARAM_DESCRIPTION, Default: ''
@@ -572,8 +575,8 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
 
 }
 
-#' @title FUNCTION_TITLE
-#' @description FUNCTION_DESCRIPTION
+#' @title concat_lidar_trees_parallel
+#' @description As concat_lidar_trees, but parallelized.
 #' @param lidar_trees PARAM_DESCRIPTION
 #' @param pick_qsm PARAM_DESCRIPTION, Default: F
 #' @param best_qsm PARAM_DESCRIPTION, Default: ''
@@ -701,5 +704,180 @@ concat_lidar_trees_parallel <- function(lidar_trees, pick_qsm = F, best_qsm = ""
         summarize(Astem_mean = mean(Astem), se = sd(Astem, na.rm=T)/sqrt(length(Astem)))
 
     return(ret)
+
+}
+
+#' @title filter_opt_mods_df
+#' @description keep only optimal models in a data.frame
+#' @param df PARAM_DESCRIPTION
+#' @param qsm_idx_col PARAM_DESCRIPTION, Default: 'qsm_idx'
+#' @param opt_qsm_idxs PARAM_DESCRIPTION
+#' @return OUTPUT_DESCRIPTION
+#' @details If opt_qsm_idxs is empty, then the full dataframe is return unaltered
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname filter_opt_mods_df
+
+filter_opt_mods_df <- function(df, qsm_idx_col = "qsm_idx", opt_qsm_idxs) {
+    qsm_idx_col = quo(qsm_idx_col)
+    if (is.na(opt_qsm_idxs) | length(opt_qsm_idxs) == 0) {
+        return(df)
+    } else {
+        return(df %>% filter(!!qsm_idx_col %in% opt_qsm_idxs))
+    }
+}
+
+
+#' @title add_opt_col
+#' @description add "opt_set" and "opt_mod" columns to a dataframe, if the qsm_idx_col matches the opt_mod
+#' @param lidar_trees concat_df[["dataset]]
+#' @param dfs dataframes to add columns to, Default: 'all'
+#' @param qsm_idx_col name of qsm index column within dataframes, Default: 'qsm_idx'
+#' @param overwrite_existing_cols Should existing columns in the dataframe be overwritten those from opt_models?, Default: F
+#' @return OUTPUT_DESCRIPTION
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname add_opt_col
+
+add_opt_col <- function(lidar_trees, dfs = "all", qsm_idx_col = "qsm_idx", overwrite_existing_cols = F) {
+
+    if (! is.null(lidar_trees$all_optimal) && lidar_trees$all_optimal == T) {
+        # handle special case of all trees being optimal
+        return(add_all_opt_col(lidar_trees, dfs))
+    }
+
+    if (! "opt_models" %in% names(lidar_trees) | length(lidar_trees[["opt_models"]][["opt_mod"]]) == 0 ) {
+
+        warning("optimal models data empty")
+        return(lidar_trees)
+
+    } else {
+        if (dfs == "all") {
+            # get all the elements of the list that are dataframes
+            dfs = lidar_trees %>% map_lgl(is.data.frame)
+            dfs = names(dfs)[which(dfs)]
+            dfs = dfs[! dfs %in% "opt_models"]
+        }
+        opt_set_qsm_idxs = unlist(lidar_trees[["opt_models"]]$opt_set)
+        opt_mods_qsm_idxs = unlist(lidar_trees[["opt_models"]]$opt_mod)
+        opt_cols = c("opt_set", "opt_mod")
+
+        for (this_df in dfs) {
+            if ("data.frame" %in% class(lidar_trees[[this_df]]) & qsm_idx_col %in% colnames(lidar_trees[[this_df]])) {
+
+                dup_cols = opt_cols[ opt_cols %in% names(lidar_trees[[this_df]]) ]
+
+                if (length(dup_cols) > 0) {
+                    if (overwrite_existing_cols) {
+                        warning("Some columns to be added to", this_df, "already exist. Overwriting...")
+                        lidar_trees[[this_df]] = lidar_trees[[this_df]] %>% select(-opt_cols)
+                    } else {
+                        warning("Some columns to be added to", this_df, "already exist. Skipping this element...")
+                          next
+                        }
+                    }
+
+                # see https://stackoverflow.com/questions/29678435/how-to-pass-dynamic-column-names-in-dplyr-into-custom-function
+                # for using dynamic column names in dplyr
+                lidar_trees[[this_df]] = lidar_trees[[this_df]] %>%
+                                         mutate(opt_set = !!as.name(qsm_idx_col) %in% opt_set_qsm_idxs,
+                                                opt_mod = !!as.name(qsm_idx_col) %in% opt_mods_qsm_idxs)
+            } else {
+                warning(paste(this_df, "either isn't a data.frame, or doesn't have column", qsm_idx_col))
+            }
+        }
+    }
+    return(lidar_trees)
+}
+
+# for internal use only, used when all the trees are optimal as signified by the "all_optimal" variable being true in the object
+add_all_opt_col <- function(lidar_trees, dfs) {
+    if (dfs == "all") {
+        # get all the elements of the list that are dataframes
+        dfs = lidar_trees %>% map_lgl(is.data.frame)
+        dfs = names(dfs)[which(dfs)]
+        dfs = dfs[! dfs %in% "opt_models"]
+    }
+    for (this_df in dfs) {
+        lidar_trees[[this_df]]$opt_mod = T
+        lidar_trees[[this_df]]$opt_set = T
+    }
+    return(lidar_trees)
+}
+
+
+#' @title add_tree_data
+#' @description Adds data from the tree_data dataframe in a lidar_tree list/object to other dataframes in that list/object
+#' @param lidar_trees PARAM_DESCRIPTION
+#' @param dfs PARAM_DESCRIPTION, Default: 'all'
+#' @param tree_data_df_name PARAM_DESCRIPTION, Default: 'tree_data'
+#' @param data_cols PARAM_DESCRIPTION, Default: c("dbh", "pom", "height", "Astem_chambers_2004")
+#' @param match_col PARAM_DESCRIPTION, Default: 'tree'
+#' @param overwrite_existing_cols Should existing columns in the dataframe be overwritten those from tree_data?, Default: F
+#' @return OUTPUT_DESCRIPTION
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname add_tree_data
+
+add_tree_data <- function(lidar_trees, dfs = "all", tree_data_df_name = "tree_data", data_cols = c("dbh", "pom", "height", "Astem_chambers_2004"), overwrite_existing_cols = F, match_col = "tree") {
+    tree_data_df = lidar_trees[[tree_data_df_name]]
+
+    # check that tree_data_df has what it needs
+    if (! all(c(match_col, data_cols) %in% names(tree_data_df)) ) {
+        warning(paste("Some columns missing from", tree_data_df_name, ".  Skipping adding tree data."))
+        return(lidar_trees)
+    }
+
+    if (dfs == "all") {
+        # get all the elements of the list that are dataframes
+        dfs = lidar_trees %>% map_lgl(is.data.frame)
+        dfs = names(dfs)[which(dfs)]
+        dfs = dfs[! dfs %in% "opt_models"] # opt_models has a class dataframe for some reason, but shouldn't be processed here
+    }
+
+    for (this_df in dfs) {
+        if ("data.frame" %in% class(lidar_trees[[this_df]]) & match_col %in% colnames(lidar_trees[[this_df]])) {
+            dup_cols = data_cols[ data_cols %in% names(lidar_trees[[this_df]]) ]
+            this_data_cols = data_cols
+
+            if (length(dup_cols) > 0) {
+                if (overwrite_existing_cols) {
+                    warning("Some columns to be added to", this_df, "already exist. Overwriting...")
+                    lidar_trees[[this_df]] = lidar_trees[[this_df]] %>% select(-dup_cols)
+                } else {
+                    warning("Some columns to be added to", this_df, "already exist. Skipping those columns...")
+                    this_data_cols = data_cols[! data_cols %in% dup_cols]
+                    if (length(this_data_cols == 0)) {
+                        # all columns to be added aready exist, and we're not overwriting, so don't alter the dataframe
+                        next
+                    }
+                }
+            }
+
+            lidar_trees[[this_df]] = lidar_trees[[this_df]] %>%
+                left_join(select(tree_data_df, c(match_col, this_data_cols)), by = match_col)
+        } else {
+            warning(paste(this_df, "either isn't a data.frame, or doesn't have column", match_col))
+        }
+    }
+
+    return(lidar_trees)
 
 }

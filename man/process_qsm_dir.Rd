@@ -2,7 +2,7 @@
 % Please edit documentation in R/struct_funcs.r
 \name{process_qsm_dir}
 \alias{process_qsm_dir}
-\title{FUNCTION_TITLE}
+\title{process_qsm_dir}
 \usage{
 process_qsm_dir(qsm_path = ".", parallel_process = T,
   cyl_file_pat = "cyl.*.txt", rename_pat = "", recursive = F,
@@ -18,15 +18,17 @@ process_qsm_dir(qsm_path = ".", parallel_process = T,
 \item{rename_pat}{Regex applied to filenames when naming ouput list elements (sub(rename_pat, '\\1', filename))}
 
 \item{recursive}{PARAM_DESCRIPTION, Default: F}
+
+\item{file_batching}{Number of files to process per batch, or 0 to process all at once, Default: 0}
 }
 \value{
-OUTPUT_DESCRIPTION
+list, one element per cyl file, of outputs from analyze_cyl_file
 }
 \description{
-FUNCTION_DESCRIPTION
+Runs analyze_cyl_file on all files in a directory
 }
 \details{
-DETAILS
+This routine provides a facility to name each element of the list based on the name of the corresponding cyl file.  Use rename_pat parameter to customize the renaming.  File batching can be used to avoid memory errors, etc
 }
 \examples{
 \dontrun{
