@@ -16,4 +16,6 @@ Imports:
   doParallel,
   foreach,
   data.table
+Suggests:
+  R.matlab
 LinkingTo: Rcpp
