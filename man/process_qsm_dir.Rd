@@ -15,7 +15,7 @@ process_qsm_dir(qsm_path = ".", parallel_process = T,
 
 \item{cyl_file_pat}{PARAM_DESCRIPTION, Default: 'cyl.*.txt'}
 
-\item{rename_pat}{Regex applied to filenames when naming ouput list elements (sub(rename_pat, '\\1', filename))}
+\item{rename_pat}{Regex applied to filenames when naming ouput list elements (sub(rename_pat, '\1', filename))}
 
 \item{recursive}{PARAM_DESCRIPTION, Default: F}
 

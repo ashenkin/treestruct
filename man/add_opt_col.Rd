@@ -8,7 +8,7 @@ add_opt_col(lidar_trees, dfs = "all", qsm_idx_col = "qsm_idx",
   overwrite_existing_cols = F)
 }
 \arguments{
-\item{lidar_trees}{concat_df[["dataset]]}
+\item{lidar_trees}{concat_df[\link{"dataset}]}
 
 \item{dfs}{dataframes to add columns to, Default: 'all'}
 

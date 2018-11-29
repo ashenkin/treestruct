@@ -8,7 +8,8 @@ Description: Provides functions (and eventually classes) to assist in the analys
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.1
+Roxygen: list(markdown = TRUE)
 Imports:
   magrittr,
   dplyr,
