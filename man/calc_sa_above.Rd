@@ -13,7 +13,7 @@ calc_sa_above(tree_structure)
 OUTPUT_DESCRIPTION
 }
 \description{
-FUNCTION_DESCRIPTION
+Calc surface areas of and above each internode
 }
 \details{
 DETAILS

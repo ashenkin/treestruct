@@ -4,7 +4,7 @@
 \alias{BranchStruct}
 \title{BranchStruct}
 \usage{
-BranchStruct(treestructdf = data.frame())
+BranchStruct(treestructdf = data.frame(), id = NA)
 }
 \arguments{
 \item{treestructdf}{branch structure; see DESCRIPTION for column names, Default: data.frame()}

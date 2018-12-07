@@ -13,18 +13,7 @@
 ## quiets concerns of R CMD check re: the .'s that appear in pipelines
 if(getRversion() >= "2.15.1") utils::globalVariables(c("."))
 
-#' @title Astem_chambers_2004
-#' @description Return surface area as estimate by Chambers' 2004 allometry
-#' @param DBH vector; tree diameter at breast height (cm)
-#' @return vector
-#' @details See Chambers 2004 and GEM manual
-#' @examples
-#' Astem_chambers_2004(40)
-#' @rdname Astem_chambers_2004
-#' @export
-Astem_chambers_2004 <- function(DBH) 10^(-0.105-0.686*log10(DBH)+2.208*(log10(DBH))^2-0.627*(log10(DBH))^3)
-
-# Calc surface areas of and above each internode
+# Validation checks ####
 
 #' @title FUNCTION_TITLE
 #' @description FUNCTION_DESCRIPTION
@@ -47,8 +36,67 @@ check_cylfile_internode_order <- function(tree_structure) {
     return(good_order)
 }
 
+#' @title validate_parents
+#' @description check whether the parent/child structure tree structure data is valid (i.e., does every parent refer to an existing internode)
+#' @param internode_ids vector
+#' @param parent_ids vector
+#' @param parents_are_rows If parent_ids are actually row numbers, not id's (common for QSM cyl_files), Default: F
+#' @return TRUE if validation passes, FALSE if it fails
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname validate_parents
+
+validate_parents <- function(internode_ids, parent_ids, parents_are_rows = F) {
+    verbose <- getOption("treestruct_verbose")
+    if(is.null(verbose)) verbose <- FALSE
+
+    if(parents_are_rows) {
+        parent_ids = internode_ids[parent_ids]
+    }
+    parents = match(parent_ids, internode_ids)
+    valid = ifelse(sum(is.na(parents)) > 1, FALSE, TRUE) # only 1 NA allowed (should be the base)
+    if (verbose & !valid) {
+        warning(paste("parents don't exist:", paste(parent_ids[is.na(parents)], collapse = " ")))
+    }
+
+    return(valid)
+}
+
+validate_internodes <- function(treestruct_df, internode_col = "internode_id", parent_col = "parent_id") {
+    verbose <- getOption("treestruct_verbose")
+    if(is.null(verbose)) verbose <- FALSE
+
+    # check duplicated internodes...
+    dups = duplicated(treestruct_df[[internode_col]])
+
+    valid = !any(dups)
+    if (verbose & !valid) {
+        warning(paste("duplicated internodes",paste(treestruct_df[[internode_col]][dups], collapse = " ")))
+    }
+    return(valid)
+}
+
+# Structure Analysis ####
+
+#' @title Astem_chambers_2004
+#' @description Return surface area as estimate by Chambers' 2004 allometry
+#' @param DBH vector; tree diameter at breast height (cm)
+#' @return vector
+#' @details See Chambers 2004 and GEM manual
+#' @examples
+#' Astem_chambers_2004(40)
+#' @rdname Astem_chambers_2004
+#' @export
+Astem_chambers_2004 <- function(DBH) 10^(-0.105-0.686*log10(DBH)+2.208*(log10(DBH))^2-0.627*(log10(DBH))^3)
+
 #' @title FUNCTION_TITLE
-#' @description FUNCTION_DESCRIPTION
+#' @description Calc surface areas of and above each internode
 #' @param tree_structure PARAM_DESCRIPTION
 #' @return OUTPUT_DESCRIPTION
 #' @details DETAILS
@@ -70,25 +118,6 @@ calc_sa_above <- function(tree_structure) {
     return(tree_structure)
 }
 
-#' @title calc_pathlen
-#' @description Wrapper for C++ pathlength code
-#' @param tree_structure a tree structure dataframe
-#' @return tree structure dataframe with a path_len column populated
-#' @details DETAILS
-#' @examples
-#' \dontrun{
-#' if(interactive()){
-#'  #EXAMPLE1
-#'  }
-#' }
-#' @rdname calc_pathlen
-#' @export
-calc_pathlen <- function(tree_structure) {
-  # wrap cpp function above
-  pathlen_vec = calc_pathlen_cpp(tree_structure$len, tree_structure$parent_row)
-  tree_structure$path_len = pathlen_vec
-  return(tree_structure)
-}
 
 #' @title FUNCTION_TITLE
 #' @description FUNCTION_DESCRIPTION

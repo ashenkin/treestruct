@@ -12,76 +12,21 @@
 #' @export
 #' @rdname BranchStruct
 
-BranchStruct <- function(treestructdf = data.frame()) {
+BranchStruct <- function(treestructdf = data.frame(), id = NA) {
     stopifnot(is.data.frame(treestructdf))
+    stopifnot(length(id) == 1)
 
     branch <-
         list(
-            id <- "",
-            treestruct = treestructdf,
+            id = id,
+            treestruct = NA,
             surface_area_total = NA
         )
 
-    structure(branch, class = "BranchStruct")
+    branch = structure(branch, class = "BranchStruct")
+    branch = setTreestruct(branch, treestructdf)
+    return(branch)
 }
 
 
-#' @title FUNCTION_TITLE
-#' @description FUNCTION_DESCRIPTION
-#' @param obj PARAM_DESCRIPTION
-#' @param newVal PARAM_DESCRIPTION
-#' @return OUTPUT_DESCRIPTION
-#' @details DETAILS
-#' @examples
-#' \dontrun{
-#' if(interactive()){
-#'  #EXAMPLE1
-#'  }
-#' }
-#' @export
-#' @rdname setID
-
-setID <- function(obj, newVal) {
-    UseMethod("setID", obj)
-}
-
-#' @title FUNCTION_TITLE
-#' @description FUNCTION_DESCRIPTION
-#' @param obj PARAM_DESCRIPTION
-#' @param newVal PARAM_DESCRIPTION
-#' @return OUTPUT_DESCRIPTION
-#' @details DETAILS
-#' @examples
-#' \dontrun{
-#' if(interactive()){
-#'  #EXAMPLE1
-#'  }
-#' }
-#' @export
-#' @rdname setID.default
-
-setID.default <- function(obj, newVal) {
-    warning("Object BranchStruct required")
-    return(obj)
-}
-
-#' @title FUNCTION_TITLE
-#' @description FUNCTION_DESCRIPTION
-#' @param obj PARAM_DESCRIPTION
-#' @param newVal PARAM_DESCRIPTION
-#' @return OUTPUT_DESCRIPTION
-#' @details DETAILS
-#' @examples
-#' \dontrun{
-#' if(interactive()){
-#'  #EXAMPLE1
-#'  }
-#' }
-#' @export
-#' @rdname setID.BranchStruct
-
-setID.BranchStruct <- function(obj, newVal) {
-    obj$id <- newVal
-    return(obj)
-}
 
