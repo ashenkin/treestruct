@@ -83,7 +83,6 @@ validate_treestruct <- function(obj) {
     UseMethod("validate_treestruct", obj)
 }
 
-#' @importFrom settings clone_and_merge
 validate_treestruct.BranchStruct <- function(obj) {
     valid = validate_parents(obj$treestruct$internode_id, obj$treestruct$parent_id)
     valid = valid & is.data.frame(obj$treestruct)

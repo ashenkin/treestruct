@@ -16,7 +16,7 @@
 #' @rdname setID
 
 setDataset <- function(obj, newVal) {
-    UseMethod("setID", obj)
+    UseMethod("setDataset", obj)
 }
 
 #' @title FUNCTION_TITLE
@@ -59,40 +59,34 @@ setDataset.BranchStructs <- function(obj, newVal) {
     return(obj)
 }
 
-setTreestruct <- function(obj, treestruct) {
-    UseMethod("setTreestruct", obj)
-}
-
-setTreestruct.BranchStruct <- function(obj, treestruct) {
+setTreestruct.BranchStructs <- function(obj, treestructs) {
+    # this creates the nested dataframe.  We use the column names defined in the object properties.
     newobj = obj
-    newobj$treestruct = treestruct
+    newobj$treestructs = treestructs
+
+    # validate treestructs
     valid_treestruct = validate_treestruct(newobj)
     if (valid_treestruct) return(newobj)
     else {
-        warning(paste( "treestruct not valid,
-                returning unmodified BranchStruct object ID ", obj$id))
+        warning(paste( "treestructs not valid,
+                       returning unmodified BranchStructs object ID ", obj$id))
         return(obj)
     }
+
+    # create nested dataframe that is the central piece of the object
 
 }
 
 # Validators ####
 
-validate_treestruct <- function(obj) {
-    UseMethod("validate_treestruct", obj)
-}
-
-#' @importFrom settings clone_and_merge
-validate_treestruct.BranchStruct <- function(obj) {
-    valid = validate_parents(obj$treestruct$internode_id, obj$treestruct$parent_id)
-    valid = valid & is.data.frame(obj$treestruct)
-    valid = valid & validate_internodes(obj$treestruct, "internode_id", "parent_id")
+validate_treestruct.BranchStructs <- function(obj) {
+    valid = validate_parents(obj$treestructs$internode_id, obj$treestructs$parent_id)
+    valid = valid & is.data.frame(obj$treestructs)
+    valid = valid & validate_internodes(obj$treestructs, "internode_id", "parent_id")
+    # assume columns are all there.  TODO validate column names.
     return(valid)
 }
 
-validate_treestruct.Default <- function(...) {
-    valid = treestruct::validate_parents(...)
-}
 # Structure Analysis ####
 
 #' @title FUNCTION_TITLE
