@@ -14,7 +14,6 @@
 #' }
 #' @export
 #' @rdname readQSM.mat
-#' @seealso
 #'
 readQSM.mat <- function(qsmfile, qsmver = 2.3) {
     if (!requireNamespace("R.matlab", quietly = TRUE)) {
@@ -67,7 +66,6 @@ readQSM.mat <- function(qsmfile, qsmver = 2.3) {
 #' }
 #' @export
 #' @rdname write_files_from_mats_dir
-#' @seealso
 #'
 write_files_from_mats_dir <- function(qsm_path = ".", recursive = F, qsmver = 2.3) {
 
@@ -104,7 +102,6 @@ write_files_from_mats_dir <- function(qsm_path = ".", recursive = F, qsmver = 2.
 #' }
 #' @export
 #' @rdname save_model_text_matlab_server
-#' @seealso
 #'
 #' @import tools
 save_model_text_matlab_server <- function(qsm_path = ".", recursive = F, treeqsm_path = "") {

@@ -60,9 +60,27 @@ setID.BranchStruct <- function(obj, newVal) {
     return(obj)
 }
 
+
+#' @export
+
 setTreestruct <- function(obj, treestruct) {
     UseMethod("setTreestruct", obj)
 }
+
+#' @title FUNCTION_TITLE
+#' @description FUNCTION_DESCRIPTION
+#' @param obj PARAM_DESCRIPTION
+#' @param treestruct PARAM_DESCRIPTION
+#' @return OUTPUT_DESCRIPTION
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname setTreestruct.BranchStruct
 
 setTreestruct.BranchStruct <- function(obj, treestruct) {
     newobj = obj
@@ -75,6 +93,13 @@ setTreestruct.BranchStruct <- function(obj, treestruct) {
         return(obj)
     }
 
+}
+
+#' @export
+
+setTreestruct.default <- function(obj, newVal) {
+    warning("setTreestruct doesn't apply to this object class")
+    return(obj)
 }
 
 # Validators ####
