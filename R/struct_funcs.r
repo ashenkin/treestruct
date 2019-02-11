@@ -71,7 +71,7 @@ validate_parents <- function(internode_ids, parent_ids, ignore_errors = NA, pare
     valid = ifelse(sum(is.na(parents)) > 1, FALSE, TRUE) # only 1 NA allowed (should be the base)
 
     if (verbose & !valid) {
-      browser()
+
         warning(paste("parents don't exist:", paste(parent_ids[is.na(parents)], collapse = " ")))
     }
 
@@ -81,7 +81,7 @@ validate_parents <- function(internode_ids, parent_ids, ignore_errors = NA, pare
 validate_internodes <- function(treestruct_df, internode_col = "internode_id", parent_col = "parent_id", ignore_error_col = "ignore_errors") {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
-browser()
+
     ignore_errors = treestruct_df[[ignore_error_col]]
 
     # check duplicated internodes...

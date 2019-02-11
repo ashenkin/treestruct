@@ -4,10 +4,12 @@
 \alias{BranchStructs}
 \title{BranchStructs}
 \usage{
-BranchStructs(dataset = NA)
+BranchStructs(dataset = NA, treestructs)
 }
 \arguments{
-\item{dataset}{name of dataset}
+\item{dataset}{name of dataset this object is based on}
+
+\item{treestructs}{dataframe of architecture data.  required.}
 
 \item{idcol}{name of branch id column; default = "branch_code"}
 

@@ -4,12 +4,15 @@
 \alias{validate_parents}
 \title{validate_parents}
 \usage{
-validate_parents(internode_ids, parent_ids, parents_are_rows = F)
+validate_parents(internode_ids, parent_ids, ignore_errors = NA,
+  parents_are_rows = F)
 }
 \arguments{
 \item{internode_ids}{vector}
 
 \item{parent_ids}{vector}
+
+\item{ignore_errors}{Boolean vector specifying which rows to ignore errors on.  A value of NA means no erros will be ignored.}
 
 \item{parents_are_rows}{If parent_ids are actually row numbers, not id's (common for QSM cyl_files), Default: F}
 }
