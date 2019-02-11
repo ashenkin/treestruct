@@ -1,6 +1,9 @@
 #' @title BranchStructs
 #' @description Constructor for BranchStructs S3 object.  Set column names before importing the treestruct dataframe
-#' @param dataset name of dataset
+#' @param dataset name of dataset this object is based on
+#' @param surface_area_total
+#' @param pathlen_total
+#' @param treestructs dataframe of architecture data.  required.
 #' @param idcol name of branch id column; default = "branch_code"
 #' @param datecol name of date column; default = "date"
 #' @param internodeid_col name internode id column; default = "internode_id"
@@ -26,7 +29,9 @@
 #' @export
 #' @rdname BranchStructs
 
-BranchStructs <- function(dataset = NA) {
+BranchStructs <- function(dataset = NA, treestructs) {
+    # TODO allow setting of colnames
+
     stopifnot(length(dataset) == 1)
 
     branches <-
@@ -48,10 +53,12 @@ BranchStructs <- function(dataset = NA) {
             istip_col = "is_tip",
             isbroken_col = "is_broken",
             d_child_col = "d_child",
-            d_parent_col = "d_parent"
+            d_parent_col = "d_parent",
+            ignore_error_col = "ignore_error"
         )
 
     branches = structure(branches, class = "BranchStructs")
+    branches = setTreestruct(branches, treestructs)
     return(branches)
 }
 

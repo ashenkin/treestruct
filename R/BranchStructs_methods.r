@@ -79,6 +79,14 @@ setDataset.BranchStructs <- function(obj, newVal) {
 setTreestruct.BranchStructs <- function(obj, treestructs) {
     newobj = obj
 
+    # create ignore_error col if it doesn't exist
+    if (! any(obj$ignore_error_col %in% names(treestructs)))
+        treestructs[[obj$ignore_error_col]] = rep(F, length(nrow(treestructs)))
+browser()
+    # set NA ignore errors to F
+    treestructs = treestructs %>% tidyr::replace_na(setNames(list(F),obj$ignore_error_col)) %>%
+        dplyr::mutate(!! sym(obj$ignore_error_col) := as.logical(sym(obj$ignore_error_col)))  # make sure we end up with a logical column
+
     # create nested dataframe that is the central piece of the object
     newobj$treestructs = treestructs %>%
         dplyr::group_by_(newobj$idcol) %>%
@@ -125,9 +133,13 @@ validate_treestruct.BranchStructs <- function(obj) {
         thisbranch = treestructs[[this_row, obj$idcol]]
         this_treestruct = treestructs[[this_row, "treestruct"]]
         if (verbose) warning(paste("Validating branch",thisbranch))
-        valid = valid & validate_parents(this_treestruct[[obj$internodeid_col]], this_treestruct[[obj$parentid_col]])
+        valid = valid & validate_parents(this_treestruct[[obj$internodeid_col]], this_treestruct[[obj$parentid_col]],
+                                         ignore_errors = this_treestruct[[obj$ignore_error_col]])
         valid = valid & is.data.frame(this_treestruct)
-        valid = valid & validate_internodes(this_treestruct, obj$internodeid_col, obj$parentid_col)
+            if (!is.data.frame(this_treestruct)) warning("Treestruct not a dataframe error")
+        browser()
+        valid = valid & validate_internodes(this_treestruct, obj$internodeid_col, obj$parentid_col,
+                                            ignore_error_col = obj$ignore_error_col)
     }
     # assume columns are all there.  TODO validate column names.
     return(valid)

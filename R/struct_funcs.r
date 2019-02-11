@@ -40,6 +40,7 @@ check_cylfile_internode_order <- function(tree_structure) {
 #' @description check whether the parent/child structure tree structure data is valid (i.e., does every parent refer to an existing internode)
 #' @param internode_ids vector
 #' @param parent_ids vector
+#' @param ignore_errors Boolean vector specifying which rows to ignore errors on.  A value of NA means no erros will be ignored.
 #' @param parents_are_rows If parent_ids are actually row numbers, not id's (common for QSM cyl_files), Default: F
 #' @return TRUE if validation passes, FALSE if it fails
 #' @details DETAILS
@@ -52,28 +53,41 @@ check_cylfile_internode_order <- function(tree_structure) {
 #' @export
 #' @rdname validate_parents
 
-validate_parents <- function(internode_ids, parent_ids, parents_are_rows = F) {
+# TODO make validation routines all work the same, either by passing columns or column names, but keep consistent one way or another
+
+validate_parents <- function(internode_ids, parent_ids, ignore_errors = NA, parents_are_rows = F) {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
+
+    if (length(ignore_errors) == 1 & is.na(ignore_errors[1])) ignore_errors = rep(F, length(internode_ids))
 
     if(parents_are_rows) {
         parent_ids = internode_ids[parent_ids]
     }
     parents = match(parent_ids, internode_ids)
+
+    parents[ignore_errors] = 0 # set any rows we're to ignore to 0 (as NA indicates an error)
+
     valid = ifelse(sum(is.na(parents)) > 1, FALSE, TRUE) # only 1 NA allowed (should be the base)
+
     if (verbose & !valid) {
+      browser()
         warning(paste("parents don't exist:", paste(parent_ids[is.na(parents)], collapse = " ")))
     }
 
     return(valid)
 }
 
-validate_internodes <- function(treestruct_df, internode_col = "internode_id", parent_col = "parent_id") {
+validate_internodes <- function(treestruct_df, internode_col = "internode_id", parent_col = "parent_id", ignore_error_col = "ignore_errors") {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
+browser()
+    ignore_errors = treestruct_df[[ignore_error_col]]
 
     # check duplicated internodes...
     dups = duplicated(treestruct_df[[internode_col]])
+
+    dups = dups & !ignore_errors # don't mark dups as an error if we're told to ignore errors on that row
 
     valid = !any(dups)
     if (verbose & !valid) {
