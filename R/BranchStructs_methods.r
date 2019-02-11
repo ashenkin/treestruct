@@ -85,7 +85,7 @@ setTreestruct.BranchStructs <- function(obj, treestructs) {
 browser()
     # set NA ignore errors to F
     treestructs = treestructs %>% tidyr::replace_na(setNames(list(F),obj$ignore_error_col)) %>%
-        dplyr::mutate(!! sym(obj$ignore_error_col) := as.logical(sym(obj$ignore_error_col)))  # make sure we end up with a logical column
+                  dplyr::mutate(err_col := as.logical(!! err_col))  # make sure we end up with a logical column
 
     # create nested dataframe that is the central piece of the object
     newobj$treestructs = treestructs %>%
