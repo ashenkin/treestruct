@@ -55,7 +55,7 @@ check_cylfile_internode_order <- function(tree_structure) {
 
 # TODO make validation routines all work the same, either by passing columns or column names, but keep consistent one way or another
 
-validate_parents <- function(internode_ids, parent_ids, ignore_errors = NA, parents_are_rows = F) {
+validate_parents <- function(internode_ids, parent_ids, ignore_errors = NA, parents_are_rows = F, ignore_base_id = T) {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
 
@@ -64,6 +64,9 @@ validate_parents <- function(internode_ids, parent_ids, ignore_errors = NA, pare
     if(parents_are_rows) {
         parent_ids = internode_ids[parent_ids]
     }
+
+    if (ignore_base_id) parent_ids = parent_ids[ stringr::str_detect(parent_ids, regex("\\s*base\\s*", ignore.case = T)) ]
+
     parents = match(parent_ids, internode_ids)
 
     parents[ignore_errors] = 0 # set any rows we're to ignore to 0 (as NA indicates an error)

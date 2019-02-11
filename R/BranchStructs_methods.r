@@ -169,7 +169,8 @@ validate_treestruct.BranchStructs <- function(obj) {
 
 calc_surfarea.BranchStructs <- function(obj) {
     sa_fun <- function(x) {
-        x$surf_area = with(x, pi * (d_child/10 + d_parent/10) * sqrt((d_parent/10 - d_child/10)^2 + len^2))
+        # surface area of a truncated cone
+        x$surf_area = with(x, pi * (d_child/20 + d_parent/20) * sqrt((d_parent/20 - d_child/20)^2 + len^2))
         return(x)
     }
     obj$treestructs$treestruct = map(obj$treestructs$treestruct, sa_fun)
