@@ -5,7 +5,7 @@
 \title{validate_parents}
 \usage{
 validate_parents(internode_ids, parent_ids, ignore_errors = NA,
-  parents_are_rows = F)
+  parents_are_rows = F, ignore_base_id = T)
 }
 \arguments{
 \item{internode_ids}{vector}

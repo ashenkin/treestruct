@@ -65,7 +65,7 @@ validate_parents <- function(internode_ids, parent_ids, ignore_errors = NA, pare
         parent_ids = internode_ids[parent_ids]
     }
 
-    if (ignore_base_id) parent_ids = parent_ids[ stringr::str_detect(parent_ids, regex("\\s*base\\s*", ignore.case = T)) ]
+    if (ignore_base_id) parent_ids = parent_ids[ ! stringr::str_detect(parent_ids, regex("\\s*base\\s*", ignore.case = T)) ]
 
     parents = match(parent_ids, internode_ids)
 
@@ -81,11 +81,19 @@ validate_parents <- function(internode_ids, parent_ids, ignore_errors = NA, pare
     return(valid)
 }
 
-validate_internodes <- function(treestruct_df, internode_col = "internode_id", parent_col = "parent_id", ignore_error_col = "ignore_errors") {
+validate_internodes <- function(treestruct_df, internode_col = "internode_id", ignore_error_col = "ignore_errors") {
+
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
 
-    ignore_errors = treestruct_df[[ignore_error_col]]
+    if (is.na(ignore_error_col)) {
+        ignore_errors = rep(F, nrow(treestruct_df))
+    } else if (any( ignore_error_col %in% names(treestruct_df) )) {
+        ignore_errors = treestruct_df[[ignore_error_col]]
+    } else {
+        warning(paste("no column named", ignore_error_col, ", not ignoring any errors"))
+        ignore_errors = rep(F, nrow(treestruct_df))
+    }
 
     # check duplicated internodes...
     dups = duplicated(treestruct_df[[internode_col]])

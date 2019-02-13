@@ -144,7 +144,7 @@ validate_treestruct.BranchStructs <- function(obj) {
         valid = valid & is.data.frame(this_treestruct)
             if (!is.data.frame(this_treestruct)) warning("Treestruct not a dataframe error")
 
-        valid = valid & validate_internodes(this_treestruct, obj$internodeid_col, obj$parentid_col,
+        valid = valid & validate_internodes(this_treestruct, obj$internodeid_col,
                                             ignore_error_col = obj$ignore_error_col)
     }
     # assume columns are all there.  TODO validate column names.

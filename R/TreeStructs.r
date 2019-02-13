@@ -1,10 +1,10 @@
-#' @title BranchStructs
-#' @description BranchStructs are hand-measured branches.  This is a constructor for the BranchStructs S3 object.  Set column names before importing the treestruct dataframe
+#' @title TreeStructs
+#' @description Constructor for TreeStructs S3 object.  Set column names before importing the treestruct dataframe
 #' @param dataset name of dataset this object is based on
-#' @param surface_area_total total surface area of branch
-#' @param pathlen_total total pathlength of branch (sum of branch lengths)
 #' @param treestructs dataframe of architecture data.  required.
-#' @param idcol name of branch id column; default = "branch_code"
+#' @param surface_area_total  total surface area of branch
+#' @param pathlen_totaltotal pathlength of branch (sum of branch lengths)
+#' @param idcol name of Tree id column; default = "Tree_code"
 #' @param datecol name of date column; default = "date"
 #' @param internodeid_col name internode id column; default = "internode_id"
 #' @param parentid_col name of parent internode id column; default = "parent_id"
@@ -27,37 +27,38 @@
 #'  }
 #' }
 #' @export
-#' @rdname BranchStructs
+#' @rdname TreeStructs
 
-BranchStructs <- function(dataset = NA, treestructs) {
+TreeStructs <- function(dataset = NA, treestructs) {
     # TODO allow setting of colnames
 
     stopifnot(length(dataset) == 1)
 
-    branchDataset <-
+    TreeDataset <-
         list(
             dataset = dataset,
             treestructs = NA,
-            idcol = "branch_code",
-            datecol = "date",
-            internodeid_col = "internode_id",
-            parentid_col = "parent_id",
-            furcation_col = "n_furcation",
+            idcol = "file",
+            radius_col = "rad",
             length_col = "len",
-            angle_col = "major_child_angle",
-            angle_internode1_col = "angle_internode_1",
-            angle_internode2_col = "angle_internode_2",
-            numnodes_col = "number_nodes_in_section",
-            istip_col = "is_tip",
-            isbroken_col = "is_broken",
-            d_child_col = "d_child",
-            d_parent_col = "d_parent",
-            ignore_error_col = "ignore_error"
+            start_loc_x_col = "x_start",
+            start_loc_y_col = "y_start",
+            start_loc_z_col = "z_start",
+            cyl_axis_x_col = "x_cyl",
+            cyl_axis_y_col = "y_cyl",
+            cyl_axis_z_col = "z_cyl",
+            parent_row_col = "parent_row",
+            daughter_row_col = "daughter_row",
+            added_after_col = "added_after",
+            unmod_rad_col = "unmod_rad",
+            branch_data_row_col = "branch_data_row",
+            branch_order_col = "branch_order",
+            index_col = "index_num"
         )
 
-    branchDataset = structure(branchDataset, class = "BranchStructs")
-    branchDataset = setTreestruct(branchDataset, treestructs)
-    return(branchDataset)
+    TreeDataset = structure(TreeDataset, class = "TreeStructs")
+    TreeDataset = setTreestruct(TreeDataset, treestructs)
+    return(TreeDataset)
 }
 
 
