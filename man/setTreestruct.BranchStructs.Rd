@@ -4,12 +4,15 @@
 \alias{setTreestruct.BranchStructs}
 \title{setTreestruct.BranchStructs}
 \usage{
-\method{setTreestruct}{BranchStructs}(obj, treestructs)
+\method{setTreestruct}{BranchStructs}(obj, treestructs,
+  convert_to_meters = T)
 }
 \arguments{
 \item{obj}{BranchStructs object}
 
 \item{treestructs}{treestruct data frame}
+
+\item{convert_to_meters}{Hand-measured branches typically use mm for diameter and cm for length.  treestruct uses meters as a standard unit.}
 }
 \value{
 BranchStructs object with validated, nested, treestructs dataframe.

@@ -52,7 +52,8 @@ BranchStructs <- function(dataset = NA, treestructs) {
             isbroken_col = "is_broken",
             d_child_col = "d_child",
             d_parent_col = "d_parent",
-            ignore_error_col = "ignore_error"
+            ignore_error_col = "ignore_error",
+            tips_set = F
         )
 
     branchDataset = structure(branchDataset, class = "BranchStructs")

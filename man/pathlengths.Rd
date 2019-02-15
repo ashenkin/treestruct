@@ -2,12 +2,12 @@
 % Please edit documentation in R/struct_funcs.r
 \name{pathlengths}
 \alias{pathlengths}
-\title{FUNCTION_TITLE}
+\title{pathlengths}
 \usage{
-pathlengths(tree_structure, start_order)
+pathlengths(treestruct, start_order)
 }
 \arguments{
-\item{tree_structure}{PARAM_DESCRIPTION}
+\item{treestruct}{PARAM_DESCRIPTION}
 
 \item{start_order}{PARAM_DESCRIPTION}
 }

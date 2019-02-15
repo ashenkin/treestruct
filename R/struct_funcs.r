@@ -15,10 +15,12 @@ if(getRversion() >= "2.15.1") utils::globalVariables(c("."))
 
 # Validation checks ####
 
-#' @title FUNCTION_TITLE
+#' @title validate_internode_order
 #' @description FUNCTION_DESCRIPTION
-#' @param tree_structure PARAM_DESCRIPTION
-#' @return OUTPUT_DESCRIPTION
+#' @param parents vector of parent internodes, either rows or id's (if id's, then internode_id parameter required)
+#' @param internode_id vector of internode ids, only required if parents are ids, not rows, default: NA
+#' @param parents_are_rows boolean flag to indicate whether parent vector refers to parent rows or ids, default: T
+#' @return boolean
 #' @details DETAILS
 #' @examples
 #' \dontrun{
@@ -27,12 +29,20 @@ if(getRversion() >= "2.15.1") utils::globalVariables(c("."))
 #'  }
 #' }
 #' @export
-#' @rdname check_cylfile_internode_order
+#' @rdname validate_internode_order
 
-check_cylfile_internode_order <- function(tree_structure) {
-    # Checks to make sure rows in cylfile are in the correct order for propagating
+validate_internode_order <- function(parents, internode_id = NA, parents_are_rows = T) {
+    # Checks to make sure rows in treestruct are in the correct order for propagating
     #   cumulative calculations such as surface area above an internode
-    good_order = all(tree_structure %>% mutate(rowdiff = parent_row - row_number(parent_row)) %>% pull(rowdiff) < 0)
+
+    if (!parents_are_rows) {
+        if(length(internode_id) != length(parents))
+            stop("Must pass proper internode_id when parents are id's, not rows")
+        parent_row = match(parents, internode_id)
+    } else parent_row = parents
+
+    rowdiff = parent_row - 1:length(parent_row)
+    good_order = all(rowdiff < 0, na.rm = TRUE) # every row should have its parent above it
     return(good_order)
 }
 
@@ -65,7 +75,7 @@ validate_parents <- function(internode_ids, parent_ids, ignore_errors = NA, pare
         parent_ids = internode_ids[parent_ids]
     }
 
-    if (ignore_base_id) parent_ids = parent_ids[ ! stringr::str_detect(parent_ids, regex("\\s*base\\s*", ignore.case = T)) ]
+    if (ignore_base_id) parent_ids = parent_ids[ ! stringr::str_detect(parent_ids, stringr::regex("\\s*base\\s*", ignore.case = T)) ]
 
     parents = match(parent_ids, internode_ids)
 
@@ -101,6 +111,8 @@ validate_internodes <- function(treestruct_df, internode_col = "internode_id", i
     dups = dups & !ignore_errors # don't mark dups as an error if we're told to ignore errors on that row
 
     valid = !any(dups)
+
+
     if (verbose & !valid) {
         warning(paste("duplicated internodes",paste(treestruct_df[[internode_col]][dups], collapse = " ")))
     }
@@ -136,7 +148,7 @@ Astem_chambers_2004 <- function(DBH) 10^(-0.105-0.686*log10(DBH)+2.208*(log10(DB
 
 calc_sa_above <- function(tree_structure) {
     # wrap cpp function above
-    if (! check_cylfile_internode_order(tree_structure)) {
+    if (! validate_internode_order(tree_structure$parent_row)) {
         warning(paste("Bad cyl file order in tree ", tree_structure$tree[1]))
     }
     tree_structure$sa_above = calc_sa_above_cpp(tree_structure$surf_area, tree_structure$parent_row)
@@ -144,9 +156,9 @@ calc_sa_above <- function(tree_structure) {
 }
 
 
-#' @title FUNCTION_TITLE
+#' @title pathlengths
 #' @description FUNCTION_DESCRIPTION
-#' @param tree_structure PARAM_DESCRIPTION
+#' @param treestruct PARAM_DESCRIPTION
 #' @param start_order PARAM_DESCRIPTION
 #' @return OUTPUT_DESCRIPTION
 #' @details DETAILS
@@ -158,16 +170,16 @@ calc_sa_above <- function(tree_structure) {
 #' }
 #' @rdname pathlengths
 #' @export
-pathlengths <- function(tree_structure, start_order) {  # TODO implement start_order parameter
-  # Calculate path length, return a tree_structure dataframe with a new path_len column
-  # start_order defines the branch order to consider the "tip".  Defaults to the maximum branch order for each tip.
-  # Start at each tip and go downwards to trunk, adding lengths along the way
-  # Accepts a tree structre as created in the analyze_cyl_file function
-  # First, find all tips
-  tree_structure$path_len = NA
-  tree_structure$tip = (tree_structure$daughter_row == 0)
-  tree_structure = calc_pathlen(tree_structure)
-  return(tree_structure)
+pathlengths <- function(treestruct, start_order) {  # TODO implement start_order parameter
+    # Calculate path length, return a tree_structure dataframe with a new path_len column
+    # start_order defines the branch order to consider the "tip".  Defaults to the maximum branch order for each tip.
+    # Start at each tip and go downwards to trunk, adding lengths along the way
+    # Accepts a tree structre as created in the analyze_cyl_file function
+    # First, find all tips
+    treestruct$path_len = NA
+    treestruct$tip = (treestruct$daughter_row == 0)
+    treestruct = calc_pathlen(treestruct)
+    return(treestruct)
 }
 
 #' @title FUNCTION_TITLE

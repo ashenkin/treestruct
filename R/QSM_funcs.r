@@ -101,6 +101,53 @@ readQSM.mat <- function(qsmfile, qsmver = 2.3) {
 #     return(list(file = basename(qsmfile), CylData = CylData, BranchData = BranchData))
 # }
 
+#' @title import_treestructs_from_dir
+#' @description utility function to create treestruct dataframe that can be used to create a TreeStructs object
+#' @param qsm_path PARAM_DESCRIPTION, Default: '.'
+#' @param recursive PARAM_DESCRIPTION, Default: F
+#' @param qsmver PARAM_DESCRIPTION, Default: 2.3
+#' @param filematch_pattern regex filematch pattern (used in list.files), Default: ".mat"
+#' @param nest nest cylinder dataframes in a column, Default: FALSE
+#' @return OUTPUT_DESCRIPTION
+#' @details this function extracts the CylData elements of all the "*.mat" files in the indicated directory
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  my_3d_trees = TreeStructs(dataset = "my_trees", treestructs = import_treestructs_from_dir("./qsm_files"))
+#'  }
+#' }
+#' @export
+#' @rdname import_treestructs_from_dir
+#'
+#' @import purrr
+#' @import tidyr
+import_treestructs_from_dir <- function(qsm_path = ".", recursive = F, qsmver = 2.3, filematch_pattern = ".mat", nest = F) {
+    verbose <- getOption("treestruct_verbose")
+    if(is.null(verbose)) verbose <- FALSE
+    qsm_mats = list.files(path = qsm_path,
+                          pattern = filematch_pattern,
+                          recursive = recursive, ignore.case = T, full.names = T)
+    if (length(qsm_mats) == 0) {
+        warning("No qsm files found in ", qsm_path)
+        return(NA)
+    }
+    pb <- txtProgressBar(max = length(qsm_mats), style = 3)
+    setTxtProgressBar(pb, 0)
+    qsms = list()
+    for (qsmfile in qsm_mats) {
+        if (verbose) print(paste("Reading", qsmfile))
+        qsms[[qsmfile]] = readQSM.mat(qsmfile, qsmver = qsmver)
+        setTxtProgressBar(pb, getTxtProgressBar(pb) + 1)
+    }
+
+    close(pb)
+
+    treestructs = qsms %>% purrr::map_dfr(~data.frame(file = .$file, .$CylData))
+
+    if (nest) treestructs = treestructs %>% group_by(file) %>% tidyr::nest(.key = "cyldata")
+
+    return(treestructs)
+}
 
 #' @title write_files_from_mats_dir
 #' @description extracts cyl and branch data from .mat files made by treeQSM and writes txt files used by this package.

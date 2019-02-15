@@ -5,6 +5,8 @@ using namespace Rcpp;
 
 // [[Rcpp::export]]
 NumericVector calc_pathlen_cpp(NumericVector len, NumericVector idx){
+    // idx is a pointer to the row of the parent of the current internode
+    // idx must be ordered from tip to base
     int n = len.size();
     NumericVector res(n);
     double cumsum=0;

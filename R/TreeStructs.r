@@ -53,7 +53,8 @@ TreeStructs <- function(dataset = NA, treestructs) {
             unmod_rad_col = "unmod_rad",
             branch_data_row_col = "branch_data_row",
             branch_order_col = "branch_order",
-            index_col = "index_num"
+            index_col = "index_num",
+            tips_set = F
         )
 
     TreeDataset = structure(TreeDataset, class = "TreeStructs")
