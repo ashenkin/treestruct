@@ -78,6 +78,7 @@ setDataset.BranchStructs <- function(obj, newVal) {
 #' @import dplyr
 #' @import tidyr
 setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T) {
+    # TODO this should really be renamed importTreestruct.  setTreestruct should be a simple assignment method I think...
     newobj = obj
 
     # create ignore_error col if it doesn't exist
@@ -154,6 +155,42 @@ setTips.BranchStructs <- function(obj) {
     return(obj)
 }
 
+#' @export
+setGraph <- function(obj) {
+    UseMethod("setGraph", obj)
+}
+
+
+#' @title setGraph.BranchStructs
+#' @description FUNCTION_DESCRIPTION
+#' @param obj BranchStructs object
+#' @return OUTPUT_DESCRIPTION
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname setGraph.BranchStructs
+#'
+setGraph.BranchStructs <- function(obj) {
+
+    make_tidygraph <- function(ts) {
+        thisedgelist = ts %>% dplyr::mutate( from = !!rlang::sym(obj$parentid_col),
+                                             to = !!rlang::sym(obj$internodeid_col) ) %>%
+            dplyr::select(from, to, everything())
+        thisnodelist = ts %>% dplyr::mutate(id = !!rlang::sym(internodeid_col), label = id) %>%
+            dplyr::select(id, label, everything())
+        this_igraph = igraph::graph_from_data_frame(d = thisedgelist, vertices = thisnodelist, directed = TRUE)
+        return(tidygraph::as_tbl_graph(this_igraph))
+    }
+
+    obj$treestructs$graph = map(obj$treestructs$treestruct, make_tidygraph)
+    return(obj)
+}
+
 # Validators ####
 
 validate_treestruct.BranchStructs <- function(obj) {
@@ -176,6 +213,8 @@ validate_treestruct.BranchStructs <- function(obj) {
     # assume columns are all there.  TODO validate column names.
     return(valid)
 }
+
+# TODO implement connectivity validation - go from every tip and make sure there is continuity to the base
 
 #' @export
 
@@ -326,21 +365,23 @@ calc_pathlen.BranchStructs <- function(obj) {
     # overwrite treestruct::calc_pathlen
     pathlen_vec <- function(treestruct) {
         parent_row = match(treestruct$parent_id, treestruct$internode_id)
-        print(treestruct$len)
-        print(parent_row)
-        treestruct$pathlen = calc_pathlen_cpp(treestruct$len,
-                                       parent_row)
+        treestruct = treestruct %>% mutate(len_tot = sum(len, na.rm = T))
+        treestruct = treestruct %>%
+            mutate(pathlen = calc_pathlen_cpp(treestruct$len, parent_row),
+                   pathlen_max = max(pathlen, na.rm = T),
+                   pathlen_min = min(pathlen, na.rm = T),
+                   pathlen_frac = pathlen_mean/pathlen_max )
         return(treestruct)
     }
 
     valid_internode_order = map_lgl(obj$treestructs$treestruct, ~validate_internode_order(.[[obj$parentid_col]], .[[obj$internodeid_col]], parents_are_rows = F))
     if (any(!valid_internode_order)) stop(paste("Invalid internode order:", paste(obj$treestructs[[obj$idcol]][!valid_internode_order], collapse = ", ")))
 
+    # check if all internodes are connected to the base.  If not, then just return total pathlength
+    # note - use igraph for this.  count_connected == 1
+    obj$treestructs$internodes_connected = map(obj$treestructs$treestruct, pathlen_vec)
     obj$treestructs$treestruct = map(obj$treestructs$treestruct, pathlen_vec)
-    obj$treestructs$pathlen_max = map_dbl(obj$treestructs$treestruct, ~max(.$pathlen, na.rm = T))
-    obj$treestructs$pathlen_mean = map_dbl(obj$treestructs$treestruct, ~mean(.$pathlen, na.rm = T))
-    obj$treestructs$pathlen_frac = map_dbl(obj$treestructs, ~.$pathlen_mean/.$pathlen_max)
-    obj$treestructs$len_tot = map_dbl(obj$treestructs$treestruct, ~sum(.$len, na.rm = T))
+
     return(obj)
 }
 
