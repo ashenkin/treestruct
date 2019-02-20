@@ -106,14 +106,20 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T)
     # validate treestructs
     if (!getOption("skip_validation", default = FALSE)) {
         valid_treestruct = validate_treestruct(newobj)
-        if (valid_treestruct) return(newobj)
-        else {
+        if (valid_treestruct) {
+
+            newobj = setGraph(newobj)
+            valid_graph = validate_connectivity(newobj)
+            if (!valid_graph) warning("Multiple components in one or more treestructs")
+            return(newobj)
+        } else {
             warning(paste("treestructs not valid,
                            returning unmodified BranchStructs object ID ", obj$id))
             return(obj)
         }
     } else {
         warning("validation turned off, returning unvalidated BranchStructs")
+        newobj = setGraph(newobj)
         return(newobj)
     }
 
@@ -181,15 +187,38 @@ setGraph.BranchStructs <- function(obj) {
         thisedgelist = ts %>% dplyr::mutate( from = !!rlang::sym(obj$parentid_col),
                                              to = !!rlang::sym(obj$internodeid_col) ) %>%
             dplyr::select(from, to, everything())
-        thisnodelist = ts %>% dplyr::mutate(id = !!rlang::sym(internodeid_col), label = id) %>%
+        thisnodelist = ts %>% dplyr::mutate(id = !!rlang::sym(obj$internodeid_col), label = id) %>%
             dplyr::select(id, label, everything())
+        allnodes = unique(c(thisedgelist$from, thisedgelist$to))
+        missing_nodes = allnodes[ is.na(match(allnodes, thisnodelist$id)) ]
+        thisnodelist = thisnodelist %>% bind_rows(data.frame(id = missing_nodes))
         this_igraph = igraph::graph_from_data_frame(d = thisedgelist, vertices = thisnodelist, directed = TRUE)
         return(tidygraph::as_tbl_graph(this_igraph))
     }
 
     obj$treestructs$graph = map(obj$treestructs$treestruct, make_tidygraph)
+    obj = setNumComponents(obj)
+
     return(obj)
 }
+
+#' @export
+setNumComponents <- function(obj) {
+    UseMethod("setNumComponents", obj)
+}
+
+#' @export
+setNumComponents.BranchStructs <- function(bss) {
+    bss$treestructs$num_components = purrr::map_dbl(bss$treestructs$graph, igraph::count_components)
+    return(bss)
+}
+
+#' @export
+setNumComponents.default <- function(obj) {
+    warning("method doesn't apply to this object, returning unmodified object")
+    return(obj)
+}
+
 
 # Validators ####
 
@@ -215,6 +244,28 @@ validate_treestruct.BranchStructs <- function(obj) {
 }
 
 # TODO implement connectivity validation - go from every tip and make sure there is continuity to the base
+
+#' @export
+validate_connectivity <- function(obj) {
+    UseMethod("validate_connectivity", obj)
+}
+
+#' @export
+validate_connectivity.BranchStructs <- function(bss) {
+    if (! "graph" %in% names(bss$treestructs)) {
+        warning("setting Graph column for validation.  Run setGraph to keep the graph column in your object.")
+        bss = SetGraph(bss)
+    }
+    valid = ! ( any(bss$treestructs$num_components != 1, na.rm = T) | any(is.na(bss$treestructs$num_components)) )
+    if (!valid) warning("Multiple components in one or more treestructs")
+    return(valid)
+}
+
+#' @export
+validate_connectivity.default <- function(obj) {
+    warning("method not applicable to this type")
+    return(obj)
+}
 
 #' @export
 
@@ -361,28 +412,53 @@ calc_vol.default <- function(obj) {
 #' @export
 #' @rdname calc_pathlen.BranchStructs
 
-calc_pathlen.BranchStructs <- function(obj) {
+calc_pathlen.BranchStructs <- function(bss) {
     # overwrite treestruct::calc_pathlen
-    pathlen_vec <- function(treestruct) {
-        parent_row = match(treestruct$parent_id, treestruct$internode_id)
-        treestruct = treestruct %>% mutate(len_tot = sum(len, na.rm = T))
-        treestruct = treestruct %>%
-            mutate(pathlen = calc_pathlen_cpp(treestruct$len, parent_row),
-                   pathlen_max = max(pathlen, na.rm = T),
-                   pathlen_min = min(pathlen, na.rm = T),
-                   pathlen_frac = pathlen_mean/pathlen_max )
-        return(treestruct)
+    if (! "graph" %in% names(bss$treestructs)) {
+        bss = setGraph(bss)
     }
 
-    valid_internode_order = map_lgl(obj$treestructs$treestruct, ~validate_internode_order(.[[obj$parentid_col]], .[[obj$internodeid_col]], parents_are_rows = F))
-    if (any(!valid_internode_order)) stop(paste("Invalid internode order:", paste(obj$treestructs[[obj$idcol]][!valid_internode_order], collapse = ", ")))
+    pathlen_vec <- function(treestructs) {
+        # takes a 1-row treestructs dataframe
+        # TODO maybe split out treetruct and treestructs operations into different functions....
+        treestruct = treestructs$treestruct[[1]]
+        parent_row = match(treestruct$parent_id, treestruct$internode_id)
+        treestruct = treestruct %>% mutate(len_tot = sum(len, na.rm = T))
+        if (validate_internode_order(treestruct[[bss$parentid_col]], treestruct[[bss$internodeid_col]], parents_are_rows = F) &
+            treestructs$num_components == 1) {
+            # calc pathlength along entire network for each node
+            if (treestructs$branch_code == "SAF05-T8-B1S") { browser() }
+            treestruct = treestruct %>%
+                mutate(pathlen = calc_pathlen_cpp(treestruct$len, parent_row))
+            # summary pathlength stats
+            summary_pathlen_vec =
+                treestruct %>% filter(tip) %>%
+                summarize(pathlen_max = max(pathlen, na.rm = T),
+                          pathlen_min = min(pathlen, na.rm = T),
+                          pathlen_mean = mean(pathlen, na.rm = T),
+                          pathlen_frac = pathlen_mean/pathlen_max )
 
-    # check if all internodes are connected to the base.  If not, then just return total pathlength
-    # note - use igraph for this.  count_connected == 1
-    obj$treestructs$internodes_connected = map(obj$treestructs$treestruct, pathlen_vec)
-    obj$treestructs$treestruct = map(obj$treestructs$treestruct, pathlen_vec)
+            treestructs$treestruct = list(treestruct)
+            treestructs = treestructs %>% bind_cols(summary_pathlen_vec)
+        } else {
+            warning(paste("Invalid internode order or multiple components in", treestructs[[bss$idcol]], ". Just calculating total length."))
+            treestruct$pathlen = NA
+            treestructs$treestruct = list(treestruct)
+            treestructs = treestructs %>%
+                mutate(pathlen_max = NA,
+                       pathlen_min = NA,
+                       pathlen_mean = NA,
+                       pathlen_frac = NA )
+        }
+        return(treestructs)
+    }
 
-    return(obj)
+    # bss$treestructs = bss$treestructs %>% rowwise() %>% do(pathlen_vec(.)) %>% bind_rows()
+    # bss$treestructs = bss$treestructs %>% purrrlyr::by_row(pathlen_vec, .labels = F, .collate = c("cols")) # this messes with the column names
+    bss$treestructs = bss$treestructs %>% mutate(tempcol = 1:n()) %>% group_by(tempcol) %>%
+        do(pathlen_vec(.)) %>% bind_rows() %>% ungroup() %>% select(-tempcol) # rowwise turns "." into a list.  group_by(1:n()) doesn't...
+
+    return(bss)
 }
 
 #' @export
@@ -396,3 +472,63 @@ calc_len.BranchStructs <- function(obj) {
     return(obj)
 }
 
+# Visualization ####
+
+#' @export
+visNetwork <- function(obj, ...) {
+    UseMethod("visNetwork", obj)
+}
+
+#' @title visNetwork.BranchStructs
+#' @description visualize branch network.  This overwrites visNetwork for BranchStructs objects.
+#' @param bss BranchStructs object (requred)
+#' @param index \code{character} or \code{integer} char matching BranchStructs id column, or index of branch in BranchStructs object (required)
+#' @param hierarchical \code{logical}, plot in hierarchical layout. Default: T
+#' @param width_factor \code{numeric} edge width factor, Default: 100
+#' @param length_factor \code{numeric} edge length factor, Default: 10
+#' @return visNetwork object
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  visNetwork(bss_obj) %>% visEdges(arrows = "middle")
+#'  }
+#' }
+#' @export
+#' @rdname visNetwork.BranchStructs
+#' @seealso
+#'  \code{\link[visNetwork]{visNetwork-igraph}},\code{\link[visNetwork]{visNetwork}}
+visNetwork.BranchStructs <- function(bss, index, hierarchical = T, width_factor = 100, length_factor = 10) {
+
+    if (is.character(index)) {
+        index = enquo(index)
+        this_tidygraph = bss$treestructs %>%
+            filter(!!sym(bss$idcol) := !!index) %>%
+            pull(graph)
+        this_id = bss$treestructs %>%
+            filter(!!sym(bss$idcol) := !!index) %>%
+            pull(!!sym(bss$idcol))
+    } else if (is.numeric(index)) {
+        # index is lookup number
+        this_tidygraph = bss$treestructs[index,]$graph[[1]]
+        this_id = bss$treestructs[index,bss$idcol][[1]]
+    }
+    netdata = visNetwork::toVisNetworkData(this_tidygraph)
+    netdata$edges = netdata$edges %>% mutate(width = d_parent * width_factor, length = len * length_factor)
+    ret =
+        visNetwork::visNetwork(netdata$nodes, netdata$edges, layout = "layout_with_fr", main = this_id) %>%
+            visNodes(font = list(size = 25) ,
+                     scaling = list(label = list(
+                         enabled = TRUE,
+                         min = 25, max = 100,
+                         maxVisible = 100,
+                         drawThreshold = 1
+                     )))
+    if (hierarchical) ret = ret %>% visHierarchicalLayout()
+    return(ret)
+}
+
+#' @export
+visNetwork.default <- function(obj) {
+    return(visNetwork::visNetwork(obj))
+}
