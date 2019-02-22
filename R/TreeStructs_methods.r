@@ -21,8 +21,6 @@ setDataset.TreeStructs <- function(obj, newVal) {
 #' @export
 #' @rdname setTreestruct.TreeStructs
 #'
-#' @import dplyr
-#' @import tidyr
 setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) {
     newobj = obj
 

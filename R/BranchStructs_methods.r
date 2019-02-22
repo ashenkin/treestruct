@@ -75,8 +75,6 @@ setDataset.BranchStructs <- function(obj, newVal) {
 #' @export
 #' @rdname setTreestruct.BranchStructs
 #'
-#' @import dplyr
-#' @import tidyr
 setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T) {
     # TODO this should really be renamed importTreestruct.  setTreestruct should be a simple assignment method I think...
     newobj = obj
