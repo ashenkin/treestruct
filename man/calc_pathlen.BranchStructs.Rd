@@ -4,7 +4,7 @@
 \alias{calc_pathlen.BranchStructs}
 \title{calc_pathlen.BranchStructs}
 \usage{
-\method{calc_pathlen}{BranchStructs}(obj)
+\method{calc_pathlen}{BranchStructs}(bss)
 }
 \arguments{
 \item{obj}{BranchStructs object}

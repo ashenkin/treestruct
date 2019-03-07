@@ -39,6 +39,8 @@ TreeStructs <- function(dataset = NA, treestructs) {
             dataset = dataset,
             treestructs = NA,
             idcol = "file",
+            internodeid_col = "internode_id", # this is added during import
+            parentid_col = "parent_id", # this is added during import
             radius_col = "rad",
             length_col = "len",
             start_loc_x_col = "x_start",
@@ -57,7 +59,8 @@ TreeStructs <- function(dataset = NA, treestructs) {
             tips_set = F
         )
 
-    TreeDataset = structure(TreeDataset, class = "TreeStructs")
+    # make treestructs inherit from branchstructs until we create a generic class that both can inherit from
+    TreeDataset = structure(TreeDataset, class = c("TreeStructs", "BranchStructs"))
     TreeDataset = setTreestruct(TreeDataset, treestructs)
     return(TreeDataset)
 }

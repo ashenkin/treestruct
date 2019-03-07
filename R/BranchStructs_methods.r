@@ -131,8 +131,25 @@ getTreestruct <- function(obj, treestruct) {
 
 #' @export
 
-getTreestruct.BranchStructs <- function(obj) {
-    return(obj$treestructs$treestruct)
+getTreestruct.BranchStructs <- function(obj, concat = TRUE) {
+    if (concat) {
+        # # have to remove other nested columns before unnesting
+        # colclasses = sapply(obj$treestructs, class)
+        # listcols = colclasses %in% "list"
+        # exludecols = names(colclasses)[listcols] != "treestruct"
+        # ret = obj$treestructs
+        # if (length(excludecols) > 1) {
+        #     # more nested cols than just treestruct
+        #     excludecolnames = names(colclasses)[excludecols]
+        #     ret = ret %>% select(-excludecols) %>% unnest()
+        # } else {
+        #     # just treestruct is nested
+        #     ret = ret %>% unnest()
+        # }
+        return(obj$treestructs %>% unnest(treestruct))
+    } else {
+        return(obj$treestructs$treestruct)
+    }
 }
 
 #' @export
@@ -217,6 +234,23 @@ setNumComponents.default <- function(obj) {
     return(obj)
 }
 
+#' @export
+getSummary <- function(obj) {
+    UseMethod("getSummary", obj)
+}
+
+#' @export
+getSummary.BranchStructs <- function(obj) {
+    # remove nested (list) columns
+    colclasses = sapply(obj$treestructs, class)
+    listcols = colclasses %in% "list"
+    if (sum(listcols) > 0) {
+        ret = obj$treestructs %>% select(-listcols)
+    } else {
+        ret = obj$treestructs
+    }
+    return(ret)
+}
 
 # Validators ####
 
@@ -345,6 +379,38 @@ reorder_internodes.default <- function(obj) {
     warning("Doesn't apply to this class")
     return(obj)
 }
+
+# Housekeeping ####
+
+#' @export
+parse_id <- function(obj) {
+    UseMethod("parse_id", obj)
+}
+
+#' @export
+parse_id.BranchStructs <- function(obj, regex = "B\\d+[S][H]?") {
+    split_treecode <- function(x) {
+        codes = stringr::str_split(x, "-")
+        codes = purrr::map(codes, function(x) {
+            x[3] = stringr::str_extract(x[3], regex)
+            return(x)
+        } )
+        return(codes)
+    }
+
+    assign_treecode_cols <- function(df, colname) {
+        newcols = split_treecode(df[[colname]])
+        df$plot = sapply(newcols, `[[`, 1)
+        df$tag = sapply(newcols, `[[`, 2)
+        df$branch = sapply(newcols, `[[`, 3)
+        return(df)
+    }
+
+    obj$treestructs = assign_treecode_cols(obj$treestructs, obj$idcol)
+
+    return(obj)
+}
+
 
 # Structure Analysis ####
 

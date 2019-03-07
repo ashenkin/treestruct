@@ -35,8 +35,15 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) 
     # create nested dataframe that is the central piece of the object
     newobj$treestructs = treestructs %>%
         dplyr::group_by_(newobj$idcol) %>%
+        # add id columns to match hand branch measurements
+        dplyr::mutate(!!rlang::sym(obj$internodeid_col) := 1:n(),
+                      #!!rlang::sym(obj$parentid_col) :=
+                          #!!rlang::sym(obj$internodeid_col)[if_else(rlang::UQ(rlang::sym(obj$parent_row_col)) %in% 0, NA, !!rlang::sym(obj$parent_row_col))]) %>%
+                      # TODO fix the direct reference to column names below.  can't figure out how to make it dynamic in ifelse...
+                      !!rlang::sym(obj$parentid_col) := internode_id[ifelse(parent_row %in% 0, NA, parent_row)], # vector index ignores 0
+                      d_parent = !!rlang::sym(obj$radius_col), # to make compliant with branchstructs.  TODO remove once treestructs no longer inherits from branchstructs
+                      d_child = d_parent) %>%
         tidyr::nest(.key = "treestruct")
-
     # validate treestructs
     if (!getOption("skip_validation", default = FALSE)) {
         valid_treestruct = validate_treestruct(newobj)
@@ -54,9 +61,15 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) 
 }
 
 #' @export
-
-getTreestruct.TreeStructs <- function(obj) {
-    return(obj$treestructs)
+setTips.TreeStructs <- function(obj) {
+    istip <- function(ts) {
+        # a branch is a tip if no other branch claims it as a parent
+        ts$tip = ! ts[[obj$internodeid_col]] %in% ts[[obj$parentid_col]]
+        return(ts)
+    }
+    obj$treestructs$treestruct = map(obj$treestructs$treestruct, istip)
+    obj$tips_set = T
+    return(obj)
 }
 
 # Validators ####
