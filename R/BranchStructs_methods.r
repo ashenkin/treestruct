@@ -125,7 +125,7 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T)
 
 #' @export
 
-getTreestruct <- function(obj, treestruct) {
+getTreestruct <- function(obj, treestruct, ...) {
     UseMethod("getTreestruct", obj)
 }
 
@@ -242,7 +242,8 @@ getSummary <- function(obj) {
 #' @export
 getSummary.BranchStructs <- function(obj) {
     # remove nested (list) columns
-    colclasses = sapply(obj$treestructs, class)
+    # listcols = sapply(hand_branches, function(x) {any(class(x) %in% "data.frame")})
+    colclasses = sapply(obj$treestructs, typeof)
     listcols = colclasses %in% "list"
     if (sum(listcols) > 0) {
         ret = obj$treestructs %>% select(-listcols)
@@ -345,7 +346,7 @@ reorder_internodes.BranchStructs <- function(obj) {
             #return(ts)
     }
 
-    obj$treestructs$treestruct = purrr::map(getTreestruct(obj), reorder_treestruct)
+    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), reorder_treestruct)
     return(obj)
 }
 
@@ -521,6 +522,9 @@ calc_pathlen.BranchStructs <- function(bss) {
     # bss$treestructs = bss$treestructs %>% purrrlyr::by_row(pathlen_vec, .labels = F, .collate = c("cols")) # this messes with the column names
     bss$treestructs = bss$treestructs %>% mutate(tempcol = 1:n()) %>% group_by(tempcol) %>%
         do(pathlen_vec(.)) %>% bind_rows() %>% ungroup() %>% select(-tempcol) # rowwise turns "." into a list.  group_by(1:n()) doesn't...
+
+    # calc total pathlength
+    bss = calc_len(bss)
 
     return(bss)
 }

@@ -78,7 +78,7 @@ validate_treestruct.TreeStructs <- function(obj) {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
     valid = T
-    treestructs = getTreestruct(obj)
+    treestructs = obj$treestructs
     for (this_row in 1:nrow(treestructs)) { # loop over all treestruct dfs in object
         thisTree = treestructs[[this_row, obj$idcol]]
         this_treestruct = treestructs[[this_row, "treestruct"]]
