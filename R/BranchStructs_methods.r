@@ -91,9 +91,9 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T)
     # convert units to meters
     if (convert_to_meters) treestructs = treestructs %>%
                                          dplyr::mutate(
-                                             !!rlang::sym(obj$length_col) := !!rlang::sym(obj$length_col) / 10,
-                                             !!rlang::sym(obj$d_child_col) := !!rlang::sym(obj$d_child_col) / 100,
-                                             !!rlang::sym(obj$d_parent_col) := !!rlang::sym(obj$d_parent_col) / 100
+                                             !!rlang::sym(obj$length_col) := !!rlang::sym(obj$length_col) / 100, # hand-measured lengths are in cm.  Convert to meters.
+                                             !!rlang::sym(obj$d_child_col) := !!rlang::sym(obj$d_child_col) / 1000, # hand-measured diams are in mm.  Convert to meters.
+                                             !!rlang::sym(obj$d_parent_col) := !!rlang::sym(obj$d_parent_col) / 1000
                                          )
 
     # create nested dataframe that is the central piece of the object
@@ -177,6 +177,19 @@ setTips.BranchStructs <- function(obj) {
 }
 
 #' @export
+getTips <- function(obj) {
+    UseMethod("getTips", obj)
+}
+
+#' @export
+getTips.BranchStructs <- function(obj, make_compatible = T) {
+    if (make_compatible) ret = obj %>% make_compatible()
+    else ret = getTreestruct(obj, concat = T)
+    ret = ret %>% filter(tip)
+    return(ret)
+}
+
+#' @export
 setGraph <- function(obj) {
     UseMethod("setGraph", obj)
 }
@@ -244,9 +257,10 @@ getSummary.BranchStructs <- function(obj) {
     # remove nested (list) columns
     # listcols = sapply(hand_branches, function(x) {any(class(x) %in% "data.frame")})
     colclasses = sapply(obj$treestructs, typeof)
-    listcols = colclasses %in% "list"
-    if (sum(listcols) > 0) {
-        ret = obj$treestructs %>% select(-listcols)
+    is_listcol = colclasses %in% "list"
+    listcols = names(colclasses)[!is_listcol]
+    if (sum(is_listcol) > 0) {
+        ret = obj$treestructs %>% select(listcols)
     } else {
         ret = obj$treestructs
     }
@@ -412,6 +426,17 @@ parse_id.BranchStructs <- function(obj, regex = "B\\d+[S][H]?") {
     return(obj)
 }
 
+#' @export
+make_compatible <- function(obj) {
+    UseMethod("make_compatible", obj)
+}
+
+#' @export
+make_compatible.BranchStructs <- function(obj) {
+    # note - returns dataframe, not object
+    #TODO change column types to be compatible
+    getTreestruct(obj, concat = T) %>% select(branch_code:branch, internode_id:is_broken, d_child:tip, branchnum:pathlen)
+}
 
 # Structure Analysis ####
 
@@ -433,7 +458,7 @@ calc_surfarea.BranchStructs <- function(obj) {
     sa_fun <- function(x) {
         # TODO make colnames dynamic
         # surface area of a truncated cone
-        x$surf_area = with(x, pi * (d_child/20 + d_parent/20) * sqrt((d_parent/20 - d_child/20)^2 + len^2))
+        x$surf_area = with(x, pi * (d_child/2 + d_parent/2) * sqrt((d_parent/2 - d_child/2)^2 + len^2))
         return(x)
     }
     obj$treestructs$treestruct = map(obj$treestructs$treestruct, sa_fun)
@@ -449,7 +474,7 @@ calc_vol <- function(obj) {
 #' @export
 calc_vol.BranchStructs <- function(obj) {
     vol_fun <- function(x) {
-        x$vol = with(x, pi * ((d_child/10 + d_parent/10)/4)^2 * len)
+        x$vol = with(x, pi * ((d_child/2 + d_parent/2)/2)^2 * len)
         return(x)
     }
     obj$treestructs$treestruct = map(obj$treestructs$treestruct, vol_fun)

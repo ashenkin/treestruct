@@ -41,7 +41,7 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) 
                           #!!rlang::sym(obj$internodeid_col)[if_else(rlang::UQ(rlang::sym(obj$parent_row_col)) %in% 0, NA, !!rlang::sym(obj$parent_row_col))]) %>%
                       # TODO fix the direct reference to column names below.  can't figure out how to make it dynamic in ifelse...
                       !!rlang::sym(obj$parentid_col) := internode_id[ifelse(parent_row %in% 0, NA, parent_row)], # vector index ignores 0
-                      d_parent = !!rlang::sym(obj$radius_col), # to make compliant with branchstructs.  TODO remove once treestructs no longer inherits from branchstructs
+                      d_parent = !!rlang::sym(obj$radius_col)*2, # to make compliant with branchstructs.  TODO remove once treestructs no longer inherits from branchstructs
                       d_child = d_parent) %>%
         tidyr::nest(.key = "treestruct")
     # validate treestructs
@@ -106,6 +106,12 @@ setTips.TreeStructs <- function(obj) {
     return(obj)
 }
 
+# Housekeeping ####
+
+#' @export
+make_compatible.TreeStructs <- function(obj) {
+    getTreestruct(obj) %>% select(file:branch, len, parent_row, daughter_row, internode_id:pathlen)
+}
 
 # Structure Analysis ####
 
@@ -128,7 +134,7 @@ calc_surfarea.TreeStructs <- function(obj) {
         # x is a treestruct dataframe
         # surface area of a cylinder
         # QSM units are meters.
-        x$surf_area = with(x, pi * get(obj$radius_col) * get(obj$length_col))
+        x$surf_area = with(x, 2 * pi * get(obj$radius_col) * get(obj$length_col))
         return(x)
     }
     obj$treestructs$treestruct = map(obj$treestructs$treestruct, sa_fun)

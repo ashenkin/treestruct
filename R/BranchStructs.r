@@ -58,6 +58,7 @@ BranchStructs <- function(dataset = NA, treestructs) {
 
     branchDataset = structure(branchDataset, class = "BranchStructs")
     branchDataset = setTreestruct(branchDataset, treestructs)
+    if (! branchDataset$tips_set) branchDataset = setTips(branchDataset)
     return(branchDataset)
 }
 
