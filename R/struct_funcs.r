@@ -121,6 +121,27 @@ validate_internodes <- function(treestruct_df, internode_col = "internode_id", i
 
 # Structure Analysis ####
 
+#' @export
+calc_dbh_ts <- function(ts) {
+    # given a QSM cylinder list, estimate DBH and POM
+    # just get the row with z_start closest to 1.4 for now; you could get more sophisticated in the future if necessary
+    # also make sure that you're getting a cylinder from the main stem (drooping branches or otherwise can cross the 1.4m line)
+    ts$z_start_corr = ts$z_start - min(ts$z_start) # start z at 0 if it doesn't already
+    main_stem = subset(tree_structure, branch_order == 0)
+    dbh_row = which(abs(main_stem$z_start_corr - 1.4) == min(abs(main_stem$z_start_corr - 1.4)))
+    DBH = main_stem[dbh_row,]$rad*2
+    POM = main_stem[dbh_row,]$z_start_corr
+    return(list(dbh = DBH, pom = POM))
+}
+
+#' @export
+calc_max_height_ts <- funtion (ts) {
+    # given a QSM cylinder list, return height of the tree
+    # TODO calculate z_end_corr and use that for height... it'll be a very small diff...
+    ts$z_start_corr = ts$z_start - min(ts$z_start)
+    height = max(ts$z_start_corr, na.rm = T)
+}
+
 #' @title Astem_chambers_2004
 #' @description Return surface area as estimate by Chambers' 2004 allometry
 #' @param DBH vector; tree diameter at breast height (cm)

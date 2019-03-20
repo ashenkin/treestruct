@@ -115,6 +115,19 @@ make_compatible.TreeStructs <- function(obj) {
 
 # Structure Analysis ####
 
+
+#' @export
+calc_dbh <- function(obj) {
+    UseMethod("calc_dbh", obj)
+}
+
+#' @export
+calc_dbh.TreeStructs <- function(obj) {
+    dbhlist = map(obj$treestructs$treestruct, calc_dbh_ts)
+
+}
+
+
 #' @title FUNCTION_TITLE
 #' @description FUNCTION_DESCRIPTION
 #' @param obj PARAM_DESCRIPTION

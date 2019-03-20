@@ -398,18 +398,38 @@ reorder_internodes.default <- function(obj) {
 # Housekeeping ####
 
 #' @export
-parse_id <- function(obj) {
+parse_id <- function(obj, ...) {
     UseMethod("parse_id", obj)
 }
 
+#' @title parse_id.BranchStructs
+#' @description parse the plot, tree tag, and branch identifier out from the concatenated identifier
+#' @param obj treestruct object
+#' @param treetag_regex regex to match tree tag, Default: '.*'
+#' @param branch_regex regex to match branchcode, Default: 'B\\ded+[S][H]?'
+#' @return OUTPUT_DESCRIPTION
+#' @details This function assumes the id column (idcol) is in the form of "plotcode-treecode-branchcode"
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
 #' @export
-parse_id.BranchStructs <- function(obj, regex = "B\\d+[S][H]?") {
+#' @rdname parse_id.BranchStructs
+parse_id.BranchStructs <- function(obj, treetag_regex = ".*", branch_regex = "B\\d+[S][H]?", nobranchcode = F, ...) {
     split_treecode <- function(x) {
         codes = stringr::str_split(x, "-")
         codes = purrr::map(codes, function(x) {
-            x[3] = stringr::str_extract(x[3], regex)
+            x[2] = stringr::str_extract(x[2], treetag_regex)
             return(x)
         } )
+        if (! nobranchcode) {
+            codes = purrr::map(codes, function(x) {
+                x[3] = stringr::str_extract(x[3], branch_regex)
+                return(x)
+            } )
+        }
         return(codes)
     }
 
@@ -417,7 +437,9 @@ parse_id.BranchStructs <- function(obj, regex = "B\\d+[S][H]?") {
         newcols = split_treecode(df[[colname]])
         df$plot = sapply(newcols, `[[`, 1)
         df$tag = sapply(newcols, `[[`, 2)
-        df$branch = sapply(newcols, `[[`, 3)
+        if (! nobranchcode) {
+            df$branch = sapply(newcols, `[[`, 3)
+        }
         return(df)
     }
 
@@ -591,7 +613,7 @@ visNetwork <- function(obj, ...) {
 #' @rdname visNetwork.BranchStructs
 #' @seealso
 #'  \code{\link[visNetwork]{visNetwork-igraph}},\code{\link[visNetwork]{visNetwork}}
-visNetwork.BranchStructs <- function(bss, index, hierarchical = T, width_factor = 100, length_factor = 10) {
+visNetwork.BranchStructs <- function(bss, index, hierarchical = T, width_factor = 1000, length_factor = 10) {
 
     if (is.character(index)) {
         index = enquo(index)
