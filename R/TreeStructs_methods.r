@@ -124,9 +124,21 @@ calc_dbh <- function(obj) {
 #' @export
 calc_dbh.TreeStructs <- function(obj) {
     dbhlist = map(obj$treestructs$treestruct, calc_dbh_ts)
-
+    obj$treestructs$dbh = unlist(lapply(dbhlist, `[[`, "dbh"))
+    obj$treestructs$pom = unlist(lapply(dbhlist, `[[`, "pom"))
+    return(obj)
 }
 
+#' @export
+calc_max_height <- function(obj) {
+    UseMethod("calc_max_height", obj)
+}
+
+#' @export
+calc_max_height.TreeStructs <- function(obj) {
+    obj$treestructs$treeheight = unlist(map(obj$treestructs$treestruct, calc_max_height_ts))
+    return(obj)
+}
 
 #' @title FUNCTION_TITLE
 #' @description FUNCTION_DESCRIPTION
