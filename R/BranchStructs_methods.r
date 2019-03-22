@@ -160,6 +160,16 @@ getTreestruct.default <- function(obj) {
 }
 
 #' @export
+getTreestructs <- function(obj) {
+    UseMethod("getTreestructs", obj)
+}
+
+#' @export
+getTreestructs.BranchStructs <- function(obj) {
+    return(obj$treestructs)
+}
+
+#' @export
 setTips <- function(obj) {
     UseMethod("setTips", obj)
 }
