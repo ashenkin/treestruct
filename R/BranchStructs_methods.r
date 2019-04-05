@@ -597,6 +597,19 @@ calc_len.BranchStructs <- function(obj) {
     return(obj)
 }
 
+
+radius_scaling.default <- function(ts) {
+    # add a radius scaling exponent to each row
+    # n = n_child/n_parent (furcation)
+    # beta = r_child/r_parent
+    # a = - log(beta) / log(n)
+
+    ts %>% dplyr::left_join(ts %>% select(c(internode_id, d_child)) %>% rename(d_parent = d_child),
+                                          by = c(parent_id = internode_id))
+}
+
+
+
 # Visualization ####
 
 #' @export
