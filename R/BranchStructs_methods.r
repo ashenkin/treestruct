@@ -93,7 +93,9 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T)
                                          dplyr::mutate(
                                              !!rlang::sym(obj$length_col) := !!rlang::sym(obj$length_col) / 100, # hand-measured lengths are in cm.  Convert to meters.
                                              !!rlang::sym(obj$d_child_col) := !!rlang::sym(obj$d_child_col) / 1000, # hand-measured diams are in mm.  Convert to meters.
-                                             !!rlang::sym(obj$d_parent_col) := !!rlang::sym(obj$d_parent_col) / 1000
+                                             !!rlang::sym(obj$d_parent_col) := !!rlang::sym(obj$d_parent_col) / 1000,
+                                             # add radius column for compatibility with TreeStructs
+                                             !!rlang::sym(obj$radius_col) := (!!rlang::sym(obj$d_parent_col) + !!rlang::sym(obj$d_child_col)) / 2
                                          )
 
     # create nested dataframe that is the central piece of the object
@@ -405,6 +407,28 @@ reorder_internodes.default <- function(obj) {
     return(obj)
 }
 
+#' @export
+correct_furcations <- function(obj) {
+    UseMethod("correct_furcations", obj)
+}
+
+#' @export
+correct_furcations.BranchStructs <- function(obj) {
+    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), correct_furcations.default)
+    return(obj)
+}
+
+#' @export
+correct_furcations.default <- function(ts) {
+    return(
+        ts %>%
+        dplyr::left_join(ts %>% dplyr::select(parent_id), by = c("internode_id" = "parent_id")) %>%
+            dplyr::add_count(internode_id, name = "n_furcation") %>%
+            dplyr::group_by(internode_id) %>%
+            dplyr::filter(row_number() == 1)
+    )
+}
+
 # Housekeeping ####
 
 #' @export
@@ -598,17 +622,72 @@ calc_len.BranchStructs <- function(obj) {
 }
 
 
+#' @export
+radius_scaling <- function(obj) {
+    UseMethod("radius_scaling", obj)
+}
+
+#' @export
+radius_scaling.BranchStructs <- function(obj) {
+    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), radius_scaling.default)
+    obj$treestructs$a_median = purrr:map_dbl(getTreestruct(obj), function(x) median(x$a, na.rm = T))
+    return(obj)
+}
+
+#' @export
 radius_scaling.default <- function(ts) {
     # add a radius scaling exponent to each row
     # n = n_child/n_parent (furcation)
     # beta = r_child/r_parent
     # a = - log(beta) / log(n)
 
-    ts %>% dplyr::left_join(ts %>% select(c(internode_id, d_child)) %>% rename(d_parent = d_child),
-                                          by = c(parent_id = internode_id))
+    if ("d_child" %in% names(ts)) {
+        ts = ts %>%
+            dplyr::left_join(
+                ts %>% dplyr::select(c(internode_id, d_child)) %>% dplyr::rename(d_parent_internode = d_child),
+                by = c("parent_id" = "internode_id")) %>%
+            dplyr::mutate(beta = ifelse(n_furcation > 1, d_parent/d_parent_internode, NA),
+                          a = ifelse(n_furcation > 1, -log(beta)/log(n_furcation), NA))
+
+    } else {
+        ts = ts %>%
+            dplyr::left_join(
+                ts %>% dplyr::select(c(internode_id, rad)) %>% dplyr::rename(rad_parent_internode = rad),
+                by = c("parent_id" = "internode_id")) %>%
+            dplyr::mutate(beta = ifelse(n_furcation > 1, d_parent/d_parent_internode, NA),
+                          a = ifelse(n_furcation > 1, -log(beta)/log(n_furcation), NA))
+    }
+    return(ts)
 }
 
+#' @export
+length_scaling <- function(obj) {
+    UseMethod("length_scaling", obj)
+}
 
+#' @export
+length_scaling.BranchStructs <- function(obj) {
+    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), length_scaling.default)
+    obj$treestructs$b_median = purrr:map_dbl(getTreestruct(obj), function(x) median(x$b, na.rm = T))
+    return(obj)
+}
+
+#' @export
+length_scaling.default <- function(ts) {
+    # add a length scaling exponent to each row
+    # n = n_child/n_parent (furcation)
+    # gamma = l_child/l_parent
+    # b = - log(gamma) / log(n)
+
+    ts = ts %>%
+        dplyr::left_join(
+            ts %>% dplyr::select(c(internode_id, len)) %>% dplyr::rename(len_parent_internode = len),
+            by = c("parent_id" = "internode_id")) %>%
+        dplyr::mutate(gamma = ifelse(n_furcation > 1, len/len_parent_internode, NA),
+                      b = ifelse(n_furcation > 1, -log(gamma)/log(n_furcation), NA))
+
+    return(ts)
+}
 
 # Visualization ####
 

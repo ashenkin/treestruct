@@ -56,6 +56,7 @@ TreeStructs <- function(dataset = NA, treestructs) {
             branch_data_row_col = "branch_data_row",
             branch_order_col = "branch_order",
             index_col = "index_num",
+            furcation_col = "n_furcation", # calculated
             tips_set = F
         )
 
