@@ -218,3 +218,67 @@ calc_pathlen.TreeStructs <- function(obj) {
     return(obj)
 }
 
+# crown metrics
+
+#' @export
+make_convhull <- function(obj) {
+    UseMethod("make_convhull", obj)
+}
+
+#' @export
+make_convhull.TreeStructs <- function(obj) {
+
+    verbose <- getOption("treestruct_verbose")
+    if(is.null(verbose)) verbose <- FALSE
+
+    obj$treestructs$convhull = NA
+    obj$treestructs$convhull2d = NA
+    obj$treestructs$crown_vol_convhull = NA
+    obj$treestructs$crown_surfarea_convhull = NA
+    obj$treestructs$crown_proj_area_convhull = NA
+
+    convhulls = purrr::map(getTreestruct(obj, concat = FALSE), make_convhull.default)
+
+    if (verbose) message("convex hulls created")
+
+    obj$treestructs$convhull = map(convhulls, "convhull")
+    obj$treestructs$convhull2d = map(convhulls, "convhull2d")
+    obj$treestructs$convhull2d_vert = map(convhulls, "convhull2d_vert")
+    obj$treestructs$crown_vol_convhull = map_dbl(convhulls, "crown_vol_convhull")
+    obj$treestructs$crown_surfarea_convhull = map_dbl(convhulls, "crown_surfarea_convhull")
+    obj$treestructs$crown_proj_area_convhull = map_dbl(convhulls, "crown_proj_area_convhull")
+    obj$treestructs$crown_proj_area_vert_convhull = map_dbl(convhulls, "crown_proj_area_vert_convhull")
+
+    return(obj)
+}
+
+#' @export
+make_convhull.default <- function(ts) {
+    #TODO include both start and end points of cylinders
+    #TODO start at first main branch, don't do the entire tree
+
+    verbose <- getOption("treestruct_verbose")
+    if(is.null(verbose)) verbose <- FALSE
+
+    tryCatch({
+        this_convhull = geometry::convhulln(ts[,c("x_start","y_start","z_start")], options = "FA")
+        this_2dconvhull = geometry::convhulln(ts[,c("x_start","y_start")], options = "FA")
+        this_vert2d_convhull = geometry::convhulln(ts[,c("y_start","z_start")], options = "FA")
+    }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+
+    if (verbose) message("convhull created")
+    return(list(convhull = this_convhull,
+                convhull2d = this_2dconvhull,
+                convhull2d_vert = this_vert2d_convhull,
+                crown_vol_convhull = this_convhull$vol,
+                crown_surfarea_convhull = this_convhull$area,
+                crown_proj_area_convhull = this_2dconvhull$vol,
+                crown_proj_area_vert_convhull = this_vert2d_convhull$vol))
+}
+
+#' @export
+run_all.TreeStructs <- function(obj) {
+    obj = make_convhull(obj) # convhull won't work on hand measured branches
+    obj = run_all.default(obj)
+    return(obj)
+}

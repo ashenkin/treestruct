@@ -17,6 +17,6 @@ LazyData: true
 RoxygenNote: 6.1.1
 Roxygen: list(markdown = TRUE)
 Imports: magrittr, dplyr, tidyr, Rcpp (>= 0.12.12), doParallel,
-        foreach, data.table, rlang, purrr, igraph, tidygraph, stringr
+        foreach, data.table, rlang, purrr, igraph, tidygraph, stringr, geometry
 Suggests: rmatio, R.matlab, visNetwork
 LinkingTo: Rcpp

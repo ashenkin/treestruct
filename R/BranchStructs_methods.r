@@ -630,7 +630,7 @@ radius_scaling <- function(obj) {
 #' @export
 radius_scaling.BranchStructs <- function(obj) {
     obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), radius_scaling.default)
-    obj$treestructs$a_median = purrr:map_dbl(getTreestruct(obj), function(x) median(x$a, na.rm = T))
+    obj$treestructs$a_median = purrr::map_dbl(getTreestruct(obj, concat = FALSE), function(x) median(x$a, na.rm = T))
     return(obj)
 }
 
@@ -668,7 +668,7 @@ length_scaling <- function(obj) {
 #' @export
 length_scaling.BranchStructs <- function(obj) {
     obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), length_scaling.default)
-    obj$treestructs$b_median = purrr:map_dbl(getTreestruct(obj), function(x) median(x$b, na.rm = T))
+    obj$treestructs$b_median = purrr::map_dbl(getTreestruct(obj, concat = FALSE), function(x) median(x$b, na.rm = T))
     return(obj)
 }
 
@@ -687,6 +687,25 @@ length_scaling.default <- function(ts) {
                       b = ifelse(n_furcation > 1, -log(gamma)/log(n_furcation), NA))
 
     return(ts)
+}
+
+
+#' @export
+run_all <- function(obj) {
+    UseMethod("run_all", obj)
+}
+
+#' @export
+run_all.default <- function(obj) {
+    obj = calc_surfarea(obj)
+    obj = calc_vol(obj)
+    obj = calc_pathlen(obj)
+    obj = calc_dbh(obj)
+    obj = calc_max_height(obj)
+    obj = correct_furcations(obj)
+    obj = radius_scaling(obj)
+    obj = length_scaling(obj)
+    return(obj)
 }
 
 # Visualization ####
