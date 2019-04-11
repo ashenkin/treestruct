@@ -582,7 +582,7 @@ calc_pathlen.BranchStructs <- function(bss) {
                 summarize(pathlen_max = max(pathlen, na.rm = T),
                           pathlen_min = min(pathlen, na.rm = T),
                           pathlen_mean = mean(pathlen, na.rm = T),
-                          pathlen_frac = pathlen_mean/pathlen_max )
+                          path_frac = pathlen_mean/pathlen_max )
 
             treestructs$treestruct = list(treestruct)
             treestructs = treestructs %>% bind_cols(summary_pathlen_vec)
@@ -594,7 +594,7 @@ calc_pathlen.BranchStructs <- function(bss) {
                 mutate(pathlen_max = NA,
                        pathlen_min = NA,
                        pathlen_mean = NA,
-                       pathlen_frac = NA )
+                       path_frac = NA )
         }
         return(treestructs)
     }
@@ -644,18 +644,20 @@ radius_scaling.default <- function(ts) {
     if ("d_child" %in% names(ts)) {
         ts = ts %>%
             dplyr::left_join(
-                ts %>% dplyr::select(c(internode_id, d_child)) %>% dplyr::rename(d_parent_internode = d_child),
+                ts %>% dplyr::select(c(internode_id, d_child, n_furcation)) %>%
+                    dplyr::rename(d_parent_internode = d_child, n_parent_furcation = n_furcation),
                 by = c("parent_id" = "internode_id")) %>%
-            dplyr::mutate(beta = ifelse(n_furcation > 1, d_parent/d_parent_internode, NA),
-                          a = ifelse(n_furcation > 1, -log(beta)/log(n_furcation), NA))
+            dplyr::mutate(beta = ifelse(n_parent_furcation > 1, d_parent/d_parent_internode, NA),
+                          a = ifelse(n_parent_furcation > 1, -log(beta)/log(n_parent_furcation), NA))
 
     } else {
         ts = ts %>%
             dplyr::left_join(
-                ts %>% dplyr::select(c(internode_id, rad)) %>% dplyr::rename(rad_parent_internode = rad),
+                ts %>% dplyr::select(c(internode_id, rad)) %>%
+                    dplyr::rename(rad_parent_internode = rad, n_parent_furcation = n_furcation),
                 by = c("parent_id" = "internode_id")) %>%
-            dplyr::mutate(beta = ifelse(n_furcation > 1, d_parent/d_parent_internode, NA),
-                          a = ifelse(n_furcation > 1, -log(beta)/log(n_furcation), NA))
+            dplyr::mutate(beta = ifelse(n_parent_furcation > 1, d_parent/d_parent_internode, NA),
+                          a = ifelse(n_parent_furcation > 1, -log(beta)/log(n_parent_furcation), NA))
     }
     return(ts)
 }
@@ -672,6 +674,7 @@ length_scaling.BranchStructs <- function(obj) {
     return(obj)
 }
 
+#TODO need to merge branch sections between furcations together!  can't use lengths of little QSM segments...
 #' @export
 length_scaling.default <- function(ts) {
     # add a length scaling exponent to each row
