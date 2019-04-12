@@ -57,7 +57,10 @@ TreeStructs <- function(dataset = NA, treestructs) {
             branch_order_col = "branch_order",
             index_col = "index_num",
             furcation_col = "n_furcation", # calculated
-            tips_set = F
+            tips_set = F,
+            internodes_reordered = F,
+            furcations_corrected = F,
+            branchnums_assigned = F
         )
 
     # make treestructs inherit from branchstructs until we create a generic class that both can inherit from

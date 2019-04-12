@@ -1,14 +1,3 @@
-
-# TODO import individual functions and not entire library when not necessary
-# in particular: beware of using data.table and dplyr together.
-
-#' @useDynLib treestruct, .registration = TRUE
-#' @importFrom Rcpp evalCpp
-#' @importFrom magrittr "%>%"
-#' @importFrom dplyr group_by summarize mutate pull
-#' @importFrom foreach "%dopar%"
-#' @importFrom stats sd
-
 # from https://github.com/STAT545-UBC/Discussion/issues/451
 ## quiets concerns of R CMD check re: the .'s that appear in pipelines
 if(getRversion() >= "2.15.1") utils::globalVariables(c("."))

@@ -54,7 +54,10 @@ BranchStructs <- function(dataset = NA, treestructs) {
             d_parent_col = "d_parent",
             ignore_error_col = "ignore_error",
             radius_col = "rad", # computed from diameters, for compatibility with TreeStructs
-            tips_set = F
+            tips_set = F,
+            internodes_reordered = F,
+            furcations_corrected = F,
+            branchnums_assigned = F
         )
 
     branchDataset = structure(branchDataset, class = "BranchStructs")

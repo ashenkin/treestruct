@@ -5,6 +5,18 @@
 
 using namespace Rcpp;
 
+// assign_branchnum_cpp
+NumericVector assign_branchnum_cpp(NumericVector furcations, LogicalVector is_tip);
+RcppExport SEXP _treestruct_assign_branchnum_cpp(SEXP furcationsSEXP, SEXP is_tipSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type furcations(furcationsSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type is_tip(is_tipSEXP);
+    rcpp_result_gen = Rcpp::wrap(assign_branchnum_cpp(furcations, is_tip));
+    return rcpp_result_gen;
+END_RCPP
+}
 // calc_pathlen_cpp
 NumericVector calc_pathlen_cpp(NumericVector len, NumericVector idx);
 RcppExport SEXP _treestruct_calc_pathlen_cpp(SEXP lenSEXP, SEXP idxSEXP) {
@@ -31,6 +43,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_treestruct_assign_branchnum_cpp", (DL_FUNC) &_treestruct_assign_branchnum_cpp, 2},
     {"_treestruct_calc_pathlen_cpp", (DL_FUNC) &_treestruct_calc_pathlen_cpp, 2},
     {"_treestruct_calc_sa_above_cpp", (DL_FUNC) &_treestruct_calc_sa_above_cpp, 2},
     {NULL, NULL, 0}

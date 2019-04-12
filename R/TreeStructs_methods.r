@@ -106,11 +106,45 @@ setTips.TreeStructs <- function(obj) {
     return(obj)
 }
 
-# Housekeeping ####
+# Utilities ####
 
 #' @export
 make_compatible.TreeStructs <- function(obj) {
     getTreestruct(obj) %>% select(file:branch, len, parent_row, daughter_row, internode_id:pathlen)
+}
+
+#' @export
+calc_summary_cyls <- function(obj) {
+    UseMethod("calc_summary_cyls", obj)
+}
+
+#' @export
+calc_summary_cyls.TreeStructs <- function(obj) {
+    if (! obj$branchnums_assigned) obj = assign_branch_num(obj)
+
+    obj$treestructs$cyl_summ = purrr::map(getTreestruct(obj, concat = FALSE), calc_summary_cyls)
+    return(obj)
+}
+
+#' @export
+calc_summary_cyls.default <- function(ts) {
+
+    cyl_summ = ts %>%
+            left_join(ts %>% select(c(internode_id, branchnum)) %>%
+                          rename(parent_branchnum = branchnum),
+                      by = c("parent_id" = "internode_id")) %>%
+        group_by(branchnum) %>%
+        summarize(rad_mean = mean(rad, na.rm = T),
+                  len = sum(len, na.rm = T),
+                  parent_branchnum = parent_branchnum[parent_branchnum != branchnum])
+
+    cyl_summ = cyl_summ %>%
+        left_join(cyl_summ %>% rename(parent_rad = rad_mean,
+                                      parent_len = len),
+                  by = c("parent_branchnum" = "branchnum"))
+
+    return(cyl_summ)
+
 }
 
 # Structure Analysis ####
