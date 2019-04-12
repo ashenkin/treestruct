@@ -236,7 +236,7 @@ make_convhull.TreeStructs <- function(obj) {
     if (verbose) message("convex hulls created")
 
     # make sure to overwrite columns
-    suppressWarnings(rst
+    suppressWarnings(
         obj$treestructs <- obj$treestructs %>% select(-one_of("^convhull$", "^convhull2d$", "^convhull2d_vert$", "^crown_vol_convhull$",
                                                         "^crown_surfarea_convhull$", "^crown_proj_area_convhull$",
                                                         "^crown_proj_area_vert_convhull$"))
