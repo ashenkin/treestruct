@@ -279,6 +279,16 @@ getSummary.BranchStructs <- function(obj) {
     return(ret)
 }
 
+#' @export
+check_property <- function(obj, ...) {
+    UseMethod("check_property", obj)
+}
+
+#' @export
+check_property.default <- function(obj, prop) {
+    if (! prop %in% names(obj)) return(F)
+    return(obj[[prop]])
+}
 # Validators ####
 
 validate_treestruct.BranchStructs <- function(obj) {
@@ -464,9 +474,9 @@ assign_branch_num <- function(obj) {
 #' @seealso
 #'
 assign_branch_num.BranchStructs <- function(obj) {
-    if (! obj$tips_set) obj = setTips(obj)
-    if (! obj$internodes_reordered) obj = reorder_internodes(obj)
-    if (! obj$furcations_corrected) obj = correct_furcations(obj)
+    if (! check_property(obj, "tips_set")) obj = setTips(obj)
+    if (! check_property(obj, "internodes_reordered")) obj = reorder_internodes(obj)
+    if (! check_property(obj, "furcations_corrected")) obj = correct_furcations(obj)
 
     obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), assign_branch_num.default)
     obj$branchnums_assigned = T
@@ -476,6 +486,12 @@ assign_branch_num.BranchStructs <- function(obj) {
 #' @export
 assign_branch_num.default <- function(ts) {
     ts$branchnum = assign_branchnum_cpp(ts$n_furcation, ts$tip)
+
+    # build branch topology when assigning branch numbers
+    ts$parent_branchnum = ts$branchnum[match(ts$parent_id, ts$internode_id)]
+    branch_lookup = ts %>% select(branchnum, parent_branchnum) %>% filter(branchnum != parent_branchnum)
+    ts$parent_branchnum = branch_lookup$parent_branchnum[match(ts$branchnum, branch_lookup$branchnum)]
+
     return(ts)
 }
 
@@ -699,8 +715,8 @@ radius_scaling.default <- function(ts) {
                 by = c("parent_id" = "internode_id")) %>%
             dplyr::mutate(beta = ifelse(n_parent_furcation > 1, d_parent/d_parent_internode, NA),
                           a = ifelse(n_parent_furcation > 1, -log(beta)/log(n_parent_furcation), NA))
-
     } else {
+        # this is working on cyl_summ from TreeStructs
         ts = ts %>%
             dplyr::left_join(
                 ts %>% dplyr::select(c(internode_id, rad)) %>%

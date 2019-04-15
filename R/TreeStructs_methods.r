@@ -120,7 +120,7 @@ calc_summary_cyls <- function(obj) {
 
 #' @export
 calc_summary_cyls.TreeStructs <- function(obj) {
-    if (! obj$branchnums_assigned) obj = assign_branch_num(obj)
+    if (! check_property(obj, "branchnums_assigned")) obj = assign_branch_num(obj)
 
     obj$treestructs$cyl_summ = purrr::map(getTreestruct(obj, concat = FALSE), calc_summary_cyls)
     return(obj)
@@ -129,6 +129,13 @@ calc_summary_cyls.TreeStructs <- function(obj) {
 #' @export
 calc_summary_cyls.default <- function(ts) {
 
+    # First, collapse by branchnum
+
+    # cyl_summ = ts %>% group_by(branchnum) %>%
+    #     summarize(rad_mean = mean(rad, na.rm = T),
+    #               len = sum(len, na.rm = T),
+    #               n_furcation = max(n_furcation, na.rm = T))
+
     cyl_summ = ts %>%
             left_join(ts %>% select(c(internode_id, branchnum)) %>%
                           rename(parent_branchnum = branchnum),
@@ -136,12 +143,20 @@ calc_summary_cyls.default <- function(ts) {
         group_by(branchnum) %>%
         summarize(rad_mean = mean(rad, na.rm = T),
                   len = sum(len, na.rm = T),
-                  parent_branchnum = parent_branchnum[parent_branchnum != branchnum])
+                  parent_branchnum = parent_branchnum[parent_branchnum != branchnum]) # there should only be one case where parent_branchnum != branchnum
 
     cyl_summ = cyl_summ %>%
-        left_join(cyl_summ %>% rename(parent_rad = rad_mean,
-                                      parent_len = len),
-                  by = c("parent_branchnum" = "branchnum"))
+        left_join(cyl_summ %>%
+                      select(-parent_branchnum) %>%
+                      rename(parent_rad = rad_mean,
+                             parent_len = len),
+                  by = c("parent_branchnum" = "branchnum")) %>%
+        # rename cols for compatibility with treestruct dataframe
+        rename(parent_id = parent_branchnum, internode_id = branchnum)
+
+    cyl_summ = correct_furcations(cyl_summ) # this calls correct_furcations.default, which happens to work.
+                                            # Might have to update this in the future if things change.  Maybe better to
+                                            # make it a guaranteed interface.
 
     return(cyl_summ)
 
@@ -318,9 +333,20 @@ make_convhull.default <- function(ts) {
                 crown_proj_area_vert_convhull = this_vert2d_convhull$vol))
 }
 
+
+#' @export
+radius_scaling.TreeStructs <- function(obj) {
+    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), radius_scaling.default)
+    obj$treestructs$a_median = purrr::map_dbl(getTreestruct(obj, concat = FALSE), function(x) median(x$a, na.rm = T))
+    return(obj)
+}
+
+
+
 #' @export
 run_all.TreeStructs <- function(obj) {
     obj = make_convhull(obj) # convhull won't work on hand measured branches
     obj = run_all.default(obj)
+    obj = calc_summary_cyls(obj)
     return(obj)
 }
