@@ -6,7 +6,7 @@
 using namespace Rcpp;
 
 // assign_branchnum_cpp
-NumericVector assign_branchnum_cpp(NumericVector furcations, LogicalVector is_tip);
+List assign_branchnum_cpp(NumericVector furcations, LogicalVector is_tip);
 RcppExport SEXP _treestruct_assign_branchnum_cpp(SEXP furcationsSEXP, SEXP is_tipSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;

@@ -60,18 +60,6 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) 
 
 }
 
-#' @export
-setTips.TreeStructs <- function(obj) {
-    istip <- function(ts) {
-        # a branch is a tip if no other branch claims it as a parent
-        ts$tip = ! ts[[obj$internodeid_col]] %in% ts[[obj$parentid_col]]
-        return(ts)
-    }
-    obj$treestructs$treestruct = map(obj$treestructs$treestruct, istip)
-    obj$tips_set = T
-    return(obj)
-}
-
 # Validators ####
 
 validate_treestruct.TreeStructs <- function(obj) {
@@ -114,7 +102,7 @@ make_compatible.TreeStructs <- function(obj) {
 }
 
 #' @export
-calc_summary_cyls <- function(obj) {
+calc_summary_cyls <- function(obj, ...) {
     UseMethod("calc_summary_cyls", obj)
 }
 
@@ -122,41 +110,42 @@ calc_summary_cyls <- function(obj) {
 calc_summary_cyls.TreeStructs <- function(obj) {
     if (! check_property(obj, "branchnums_assigned")) obj = assign_branch_num(obj)
 
-    obj$treestructs$cyl_summ = purrr::map(getTreestruct(obj, concat = FALSE), calc_summary_cyls)
+    obj$treestructs$cyl_summ = purrr::map(getTreestruct(obj, concat = FALSE), calc_summary_cyls, check_property(obj, "furcations_corrected"))
     return(obj)
 }
 
 #' @export
-calc_summary_cyls.default <- function(ts) {
+calc_summary_cyls.default <- function(ts, furcations_corrected = F) {
+    # assign_branch_num must be run first
 
-    # First, collapse by branchnum
+    if (! furcations_corrected) {
+        ts = correct_furcations(ts)
+    }
 
-    # cyl_summ = ts %>% group_by(branchnum) %>%
-    #     summarize(rad_mean = mean(rad, na.rm = T),
-    #               len = sum(len, na.rm = T),
-    #               n_furcation = max(n_furcation, na.rm = T))
-
-    cyl_summ = ts %>%
-            left_join(ts %>% select(c(internode_id, branchnum)) %>%
-                          rename(parent_branchnum = branchnum),
-                      by = c("parent_id" = "internode_id")) %>%
-        group_by(branchnum) %>%
+    # collapse by branchnum
+    cyl_summ = ts %>% group_by(branchnum) %>%
         summarize(rad_mean = mean(rad, na.rm = T),
                   len = sum(len, na.rm = T),
-                  parent_branchnum = parent_branchnum[parent_branchnum != branchnum]) # there should only be one case where parent_branchnum != branchnum
+                  pathlen_mean = mean(pathlen, na.rm = T),
+                  n_furcation = max(n_furcation, na.rm = T),
+                  num_cyls_in_branch = n(),
+                  parent_branchnum = first(parent_branchnum))
 
+    # join parent branch metrics to each row to facilitate branch scaling calculations
     cyl_summ = cyl_summ %>%
         left_join(cyl_summ %>%
-                      select(-parent_branchnum) %>%
-                      rename(parent_rad = rad_mean,
-                             parent_len = len),
+                      select(branchnum,
+                             parent_rad = rad_mean,
+                             parent_len = len,
+                             parent_n_furcation = n_furcation),
+                      # rename(parent_rad = rad_mean,
+                      #        parent_len = len,
+                      #        parent_n_furcation = n_furcation),
                   by = c("parent_branchnum" = "branchnum")) %>%
         # rename cols for compatibility with treestruct dataframe
         rename(parent_id = parent_branchnum, internode_id = branchnum)
 
-    cyl_summ = correct_furcations(cyl_summ) # this calls correct_furcations.default, which happens to work.
-                                            # Might have to update this in the future if things change.  Maybe better to
-                                            # make it a guaranteed interface.
+    cyl_summ = setTips(cyl_summ)
 
     return(cyl_summ)
 
@@ -344,9 +333,9 @@ radius_scaling.TreeStructs <- function(obj) {
 
 
 #' @export
-run_all.TreeStructs <- function(obj) {
+run_all.TreeStructs <- function(obj, calc_dbh = T) {
     obj = make_convhull(obj) # convhull won't work on hand measured branches
-    obj = run_all.default(obj)
+    obj = run_all.default(obj, calc_dbh)
     obj = calc_summary_cyls(obj)
     return(obj)
 }

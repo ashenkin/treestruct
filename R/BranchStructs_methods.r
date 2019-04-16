@@ -178,14 +178,16 @@ setTips <- function(obj) {
 
 #' @export
 setTips.BranchStructs <- function(obj) {
-    istip <- function(ts) {
-        # a branch is a tip if no other branch claims it as a parent
-        ts$tip = ! ts[[obj$internodeid_col]] %in% ts[[obj$parentid_col]]
-        return(ts)
-    }
-    obj$treestructs$treestruct = map(obj$treestructs$treestruct, istip)
+    obj$treestructs$treestruct = map(obj$treestructs$treestruct, setTips.default)
     obj$tips_set = T
     return(obj)
+}
+
+#' @export
+setTips.default <- function(ts) {
+    # a branch is a tip if no other branch claims it as a parent
+    ts$tip = ! ts[["internode_id"]] %in% ts[["parent_id"]]
+    return(ts)
 }
 
 #' @export
@@ -359,75 +361,44 @@ reorder_internodes <- function(obj) {
 #' @export
 #' @rdname reorder_internodes.BranchStructs
 reorder_internodes.BranchStructs <- function(obj) {
-    if (! obj$tips_set) obj = setTips(obj)
-
-    reorder_treestruct <- function(ts) {
-        tscopy = ts
-        ntips = sum(tscopy$tip)
-        tscopy$orig_row = 1:nrow(ts)
-        tscopy$parent_row = match(tscopy[[obj$parentid_col]], tscopy[[obj$internodeid_col]])
-        # which branch does this cylinder belong to
-            tscopy$branchnum = NA
-        # the sequence order of the cylinders within the branch
-            tscopy$cyl_order_in_branch = NA
-        # initiate branches from tip downwards
-            tscopy[tscopy$tip,]$branchnum = 1:ntips
-            tscopy[tscopy$tip,]$cyl_order_in_branch = 1
-        # tscopy$daughter_row = match(tscopy[[obj$internodeid_col]], tscopy[[obj$parentid_col]])
-        # follow each tip downwards, stopping when you hit the base or a cylinder already claimed by another branch
-        for (thisbranch in 1:ntips) {
-            curr_row = which(tscopy$branchnum == thisbranch)
-            thiscylorder = 2
-            repeat {
-                next_row = tscopy[curr_row,]$parent_row
-                if (is.na(next_row) |                           # we've hit the base
-                    ! is.na(tscopy[next_row,]$branchnum)) break # cylinder already claimed by another branch
-                tscopy[next_row,]$branchnum = thisbranch
-                tscopy[next_row,]$cyl_order_in_branch = thiscylorder
-                thiscylorder = thiscylorder + 1
-                curr_row = next_row
-            }
-        }
-        # now reorder ts from last branch to first, and tip downwards within branch
-            tscopy = tscopy %>% dplyr::arrange(desc(branchnum), cyl_order_in_branch)
-            ts = ts[tscopy$orig_row,]    # use copied dataframe to reorder original (we've added columns to tscopy, etc)
-            return(ts)
-    }
-
-    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), reorder_treestruct)
+    if (! check_property(obj, "tips_set")) obj = setTips(obj)
+    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), reorder_internodes)
     obj$internodes_reordered = T
     return(obj)
 }
 
-
-
-# reorder_internodes.BranchStructs <- function(obj) {
-#     reorder_treestruct <- function(ts) {
-#
-#         parent_row = match(ts[[obj$parentid_col]], ts[[obj$internodeid_col]])
-#         if (all(parent_row - 1:length(parent_row) < 0, na.rm = T)) return(ts)
-#
-#         # need to reorder rows
-#         i = 1
-#         repeat{
-#             ts = ts[order(parent_row, na.last = F),]
-#             parent_row = match(ts[[obj$parentid_col]], ts[[obj$internodeid_col]])
-#             correct_order = all(parent_row - 1:length(parent_row) < 0, na.rm = T)
-#             i = i + 1
-#             if (i > 10) { browser() }
-#             if (correct_order) break
-#         }
-#         return(ts)
-#     }
-#     obj$treestructs$treestruct = map(getTreestruct(obj), reorder_treestruct)
-#     return(obj)
-# }
-
 #' @export
-
-reorder_internodes.default <- function(obj) {
-    warning("Doesn't apply to this class")
-    return(obj)
+reorder_internodes.default <- function(ts) {
+    tscopy = ts %>% select(internode_id, parent_id, tip)
+    ntips = sum(tscopy$tip)
+    tscopy$orig_row = 1:nrow(ts)
+    tscopy$parent_row = match(tscopy$parent_id, tscopy$internode_id)
+    # which branch does this cylinder belong to
+    tscopy$branchnum = NA
+    # the sequence order of the cylinders within the branch
+    tscopy$cyl_order_in_branch = NA
+    # initiate branches from tip downwards
+    tscopy[tscopy$tip,]$branchnum = 1:ntips
+    tscopy[tscopy$tip,]$cyl_order_in_branch = 1
+    # tscopy$daughter_row = match(tscopy[[obj$internodeid_col]], tscopy[[obj$parentid_col]])
+    # follow each tip downwards, stopping when you hit the base or a cylinder already claimed by another branch
+    for (thisbranch in 1:ntips) {
+        curr_row = match(thisbranch, tscopy$branchnum)
+        thiscylorder = 2
+        repeat {
+            next_row = tscopy[curr_row,]$parent_row
+            if (is.na(next_row) |                           # we've hit the base
+                ! is.na(tscopy[next_row,]$branchnum)) break # cylinder already claimed by another branch
+            tscopy[next_row,]$branchnum = thisbranch
+            tscopy[next_row,]$cyl_order_in_branch = thiscylorder
+            thiscylorder = thiscylorder + 1
+            curr_row = next_row
+        }
+    }
+    # now reorder ts from last branch to first, and tip downwards within branch
+    tscopy = tscopy %>% dplyr::arrange(desc(branchnum), cyl_order_in_branch)
+    ts = ts[tscopy$orig_row,]    # use copied dataframe to reorder original (we've added columns to tscopy, etc)
+    return(ts)
 }
 
 #' @export
@@ -446,7 +417,7 @@ correct_furcations.BranchStructs <- function(obj) {
 correct_furcations.default <- function(ts) {
     return(
         ts %>%
-        dplyr::left_join(ts %>% dplyr::select(parent_id), by = c("internode_id" = "parent_id")) %>%
+        dplyr::left_join(ts %>% dplyr::select(parent_id), by = c("internode_id" = "parent_id")) %>% # how many rows call you "parent"
             dplyr::add_count(internode_id, name = "n_furcation") %>%
             dplyr::group_by(internode_id) %>%
             dplyr::filter(row_number() == 1)
@@ -485,8 +456,9 @@ assign_branch_num.BranchStructs <- function(obj) {
 
 #' @export
 assign_branch_num.default <- function(ts) {
-    ts$branchnum = assign_branchnum_cpp(ts$n_furcation, ts$tip)
-
+    branchnum_ret = assign_branchnum_cpp(ts$n_furcation, ts$tip)
+    ts$branchnum = branchnum_ret[["branchnum"]]
+    ts$order_in_branch = branchnum_ret[["order_in_branch"]]
     # build branch topology when assigning branch numbers
     ts$parent_branchnum = ts$branchnum[match(ts$parent_id, ts$internode_id)]
     branch_lookup = ts %>% select(branchnum, parent_branchnum) %>% filter(branchnum != parent_branchnum)
@@ -760,17 +732,18 @@ length_scaling.default <- function(ts) {
 
 
 #' @export
-run_all <- function(obj) {
+run_all <- function(obj, ...) {
     UseMethod("run_all", obj)
 }
 
 #' @export
-run_all.default <- function(obj) {
+run_all.default <- function(obj, calc_dbh = T) {
+    if (! check_property(obj, "tips_set")) obj = setTips(obj)
     obj = calc_surfarea(obj)
     obj = calc_vol(obj)
     obj = calc_pathlen(obj)
-    obj = calc_dbh(obj)
     obj = calc_max_height(obj)
+    if (calc_dbh) obj = calc_dbh(obj)
     obj = correct_furcations(obj)
     obj = assign_branch_num(obj)
     obj = radius_scaling(obj)

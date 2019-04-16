@@ -66,7 +66,7 @@ TreeStructs <- function(dataset = NA, treestructs) {
     # make treestructs inherit from branchstructs until we create a generic class that both can inherit from
     TreeDataset = structure(TreeDataset, class = c("TreeStructs", "BranchStructs"))
     TreeDataset = setTreestruct(TreeDataset, treestructs)
-    if (! TreeDataset$tips_set) TreeDataset = setTips(TreeDataset)
+    TreeDataset = setTips(TreeDataset)
     return(TreeDataset)
 }
 
