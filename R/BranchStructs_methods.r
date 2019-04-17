@@ -59,6 +59,11 @@ setDataset.BranchStructs <- function(obj, newVal) {
     return(obj)
 }
 
+#' @export
+setTreestruct <- function(obj, treestruct) {
+    UseMethod("setTreestruct", obj)
+}
+
 #' @title setTreestruct.BranchStructs
 #' @description This validates and creates the nested dataframe and populates the object with it.
 #' @param obj BranchStructs object
@@ -710,6 +715,28 @@ calc_len.BranchStructs <- function(obj) {
     return(obj)
 }
 
+#' @export
+join_parents_to_treestruct <- function(obj) {
+    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = F), join_parents_to_treestruct.default)
+    return(obj)
+}
+
+#' @export
+join_parents_to_treestruct.default <- function(ts) {
+    if (! "d_parent_internode" %in% names(ts)) {
+    ts = ts %>%
+        dplyr::left_join(
+            ts %>% dplyr::select(c(internode_id, d_child, n_furcation)) %>%
+                dplyr::rename(d_parent_internode = d_child, n_furcation_parent = n_furcation),
+            by = c("parent_id" = "internode_id"))
+    } else {
+        verbose <- getOption("treestruct_verbose")
+        if(is.null(verbose)) verbose <- FALSE
+        if (verbose) message("parents already joined to treestruct, skipping")
+    }
+
+    return(ts)
+}
 
 #' @export
 radius_scaling <- function(obj) {
@@ -718,6 +745,7 @@ radius_scaling <- function(obj) {
 
 #' @export
 radius_scaling.BranchStructs <- function(obj) {
+    obj = join_parents_to_treestruct(obj)
     obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), radius_scaling.default)
     obj$treestructs$a_median = purrr::map_dbl(getTreestruct(obj, concat = FALSE), function(x) median(x$a, na.rm = T))
     return(obj)
@@ -732,10 +760,6 @@ radius_scaling.default <- function(ts) {
 
     if ("d_child" %in% names(ts)) {
         ts = ts %>%
-            dplyr::left_join(
-                ts %>% dplyr::select(c(internode_id, d_child, n_furcation)) %>%
-                    dplyr::rename(d_parent_internode = d_child, n_furcation_parent = n_furcation),
-                by = c("parent_id" = "internode_id")) %>%
             dplyr::mutate(beta = ifelse(n_furcation_parent > 1, d_parent/d_parent_internode, NA),
                           a = ifelse(n_furcation_parent > 1, -log(beta)/log(n_furcation_parent), NA))
     } else {
@@ -754,6 +778,7 @@ length_scaling <- function(obj) {
 
 #' @export
 length_scaling.BranchStructs <- function(obj) {
+    obj = join_parents_to_treestruct(obj)
     obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), length_scaling.default)
     obj$treestructs$b_median = purrr::map_dbl(getTreestruct(obj, concat = FALSE), function(x) median(x$b, na.rm = T))
     return(obj)
@@ -789,18 +814,18 @@ run_all <- function(obj, ...) {
 }
 
 #' @export
-run_all.BranchStructs <- function(obj, calc_dbh = F, calc_summ_cyl = F) {
-    run_all.default(obj, calc_dbh, calc_summ_cyl)
+run_all.BranchStructs <- function(obj, calc_dbh = F, calc_summ_cyl = F, calc_max_height = F) {
+    run_all.default(obj, calc_dbh, calc_summ_cyl, calc_max_height)
 }
 
 #' @export
-run_all.default <- function(obj, calc_dbh = T, calc_summ_cyl = T) {
+run_all.default <- function(obj, calc_dbh = T, calc_summ_cyl = T, calc_max_height = T) {
     # if (! check_property(obj, "tips_set")) obj = setTips(obj)
     obj = setTips(obj) # always set tips for now...  not necessary if reading from source...
     obj = calc_surfarea(obj)
     obj = calc_vol(obj)
     obj = calc_pathlen(obj)
-    obj = calc_max_height(obj)
+    if (calc_max_height) obj = calc_max_height(obj)
     if (calc_dbh) obj = calc_dbh(obj)
     obj = correct_furcations(obj)
     obj = assign_branch_num(obj)
