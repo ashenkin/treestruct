@@ -738,7 +738,8 @@ run_all <- function(obj, ...) {
 
 #' @export
 run_all.default <- function(obj, calc_dbh = T) {
-    if (! check_property(obj, "tips_set")) obj = setTips(obj)
+    # if (! check_property(obj, "tips_set")) obj = setTips(obj)
+    obj = setTips(obj) # always set tips for now...  not necessary if reading from source...
     obj = calc_surfarea(obj)
     obj = calc_vol(obj)
     obj = calc_pathlen(obj)

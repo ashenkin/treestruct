@@ -82,18 +82,6 @@ validate_treestruct.TreeStructs <- function(obj) {
     return(valid)
 }
 
-#' @export
-setTips.TreeStructs <- function(obj) {
-    istip <- function(ts) {
-        # a branch is a tip if it has no daughters
-        ts$tip = ts[[obj$daughter_row_col]] == 0
-        return(ts)
-    }
-    obj$treestructs$treestruct = map(obj$treestructs$treestruct, istip)
-    obj$tips_set = T
-    return(obj)
-}
-
 # Utilities ####
 
 #' @export
