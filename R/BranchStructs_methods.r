@@ -293,6 +293,10 @@ check_property.default <- function(obj, prop) {
 }
 # Validators ####
 
+validate_treestruct <- function(obj) {
+    UseMethod("validate_treestruct", obj)
+}
+
 validate_treestruct.BranchStructs <- function(obj) {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
@@ -314,7 +318,9 @@ validate_treestruct.BranchStructs <- function(obj) {
     return(valid)
 }
 
-# TODO implement connectivity validation - go from every tip and make sure there is continuity to the base
+validate_treestruct.default <- function(...) {
+    valid = treestruct::validate_parents(...)
+}
 
 #' @export
 validate_connectivity <- function(obj) {
@@ -546,6 +552,24 @@ make_compatible.BranchStructs <- function(obj) {
 #'  }
 #' }
 #' @export
+#' @rdname calc_surfarea
+
+calc_surfarea <- function(obj) {
+    UseMethod("calc_surfarea", obj)
+}
+
+#' @title FUNCTION_TITLE
+#' @description FUNCTION_DESCRIPTION
+#' @param obj PARAM_DESCRIPTION
+#' @return OUTPUT_DESCRIPTION
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
 #' @rdname calc_surfarea.BranchStructs
 
 calc_surfarea.BranchStructs <- function(obj) {
@@ -580,6 +604,13 @@ calc_vol.BranchStructs <- function(obj) {
 calc_vol.default <- function(obj) {
     warning("Doesn't apply to this class")
     return(obj)
+}
+
+#' @title calc_pathlen
+#' @export
+#' @rdname calc_pathlen
+calc_pathlen <- function(obj) {
+    UseMethod("calc_pathlen", obj)
 }
 
 #' @title calc_pathlen.BranchStructs
@@ -648,6 +679,26 @@ calc_pathlen.BranchStructs <- function(bss) {
     return(bss)
 }
 
+#' @title calc_pathlen.default
+#' @description Wrapper for C++ pathlength code
+#' @param tree_structure a tree structure dataframe
+#' @param length_col chr specifiying length column. default:"len"
+#' @param parent_row_col chr specifiying parent row column. default:"parent_row"
+#' @param path_len_col chr specifiying path length column. default:"path_len"
+#' @return tree structure dataframe with a path_len column populated
+#' @details DETAILS
+#' @export
+#' @rdname calc_pathlen.default
+calc_pathlen.default <- function(tree_structure, length_col = "len",
+                                 parent_row_col = "parent_row",
+                                 path_len_col = "path_len") {
+    # wrap cpp function
+    pathlen_vec = calc_pathlen_cpp(tree_structure[[length_col]],
+                                   tree_structure[[parent_row_col]])
+    tree_structure[[path_len_col]] = pathlen_vec
+    return(tree_structure)
+}
+
 #' @export
 calc_len <- function(obj) {
     UseMethod("calc_len", obj)
@@ -683,19 +734,15 @@ radius_scaling.default <- function(ts) {
         ts = ts %>%
             dplyr::left_join(
                 ts %>% dplyr::select(c(internode_id, d_child, n_furcation)) %>%
-                    dplyr::rename(d_parent_internode = d_child, n_parent_furcation = n_furcation),
+                    dplyr::rename(d_parent_internode = d_child, n_furcation_parent = n_furcation),
                 by = c("parent_id" = "internode_id")) %>%
-            dplyr::mutate(beta = ifelse(n_parent_furcation > 1, d_parent/d_parent_internode, NA),
-                          a = ifelse(n_parent_furcation > 1, -log(beta)/log(n_parent_furcation), NA))
+            dplyr::mutate(beta = ifelse(n_furcation_parent > 1, d_parent/d_parent_internode, NA),
+                          a = ifelse(n_furcation_parent > 1, -log(beta)/log(n_furcation_parent), NA))
     } else {
         # this is working on cyl_summ from TreeStructs
         ts = ts %>%
-            dplyr::left_join(
-                ts %>% dplyr::select(c(internode_id, rad)) %>%
-                    dplyr::rename(rad_parent_internode = rad, n_parent_furcation = n_furcation),
-                by = c("parent_id" = "internode_id")) %>%
-            dplyr::mutate(beta = ifelse(n_parent_furcation > 1, d_parent/d_parent_internode, NA),
-                          a = ifelse(n_parent_furcation > 1, -log(beta)/log(n_parent_furcation), NA))
+            dplyr::mutate(beta = ifelse(n_furcation_parent > 1, rad/rad_parent, NA),
+                          a = ifelse(n_furcation_parent > 1, -log(beta)/log(n_furcation_parent), NA))
     }
     return(ts)
 }
@@ -712,7 +759,6 @@ length_scaling.BranchStructs <- function(obj) {
     return(obj)
 }
 
-#TODO need to merge branch sections between furcations together!  can't use lengths of little QSM segments...
 #' @export
 length_scaling.default <- function(ts) {
     # add a length scaling exponent to each row
@@ -720,13 +766,19 @@ length_scaling.default <- function(ts) {
     # gamma = l_child/l_parent
     # b = - log(gamma) / log(n)
 
-    ts = ts %>%
-        dplyr::left_join(
-            ts %>% dplyr::select(c(internode_id, len)) %>% dplyr::rename(len_parent_internode = len),
-            by = c("parent_id" = "internode_id")) %>%
-        dplyr::mutate(gamma = ifelse(n_furcation > 1, len/len_parent_internode, NA),
-                      b = ifelse(n_furcation > 1, -log(gamma)/log(n_furcation), NA))
-
+    if ("d_child" %in% names(ts)) {
+        ts = ts %>%
+            dplyr::left_join(
+                ts %>% dplyr::select(c(internode_id, len)) %>% dplyr::rename(len_parent_internode = len),
+                by = c("parent_id" = "internode_id")) %>%
+            dplyr::mutate(gamma = ifelse(n_furcation_parent > 1, len/len_parent_internode, NA),
+                          b = ifelse(n_furcation_parent > 1, -log(gamma)/log(n_furcation_parent), NA))
+    } else {
+        # this is working on cyl_summ from TreeStructs
+        ts = ts %>%
+            dplyr::mutate(gamma = ifelse(n_furcation_parent > 1, len/len_parent, NA),
+                          b = ifelse(n_furcation_parent > 1, -log(gamma)/log(n_furcation_parent), NA))
+    }
     return(ts)
 }
 
@@ -737,7 +789,12 @@ run_all <- function(obj, ...) {
 }
 
 #' @export
-run_all.default <- function(obj, calc_dbh = T) {
+run_all.BranchStructs <- function(obj, calc_dbh = F, calc_summ_cyl = F) {
+    run_all.default(obj, calc_dbh, calc_summ_cyl)
+}
+
+#' @export
+run_all.default <- function(obj, calc_dbh = T, calc_summ_cyl = T) {
     # if (! check_property(obj, "tips_set")) obj = setTips(obj)
     obj = setTips(obj) # always set tips for now...  not necessary if reading from source...
     obj = calc_surfarea(obj)
@@ -747,6 +804,7 @@ run_all.default <- function(obj, calc_dbh = T) {
     if (calc_dbh) obj = calc_dbh(obj)
     obj = correct_furcations(obj)
     obj = assign_branch_num(obj)
+    if (calc_summ_cyl) obj = calc_summary_cyls(obj)
     obj = radius_scaling(obj)
     obj = length_scaling(obj)
     return(obj)
