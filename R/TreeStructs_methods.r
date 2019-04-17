@@ -60,6 +60,22 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) 
 
 }
 
+#' @export
+getCylSummary <- function(obj, ...) {
+    UseMethod("getCylSummary", obj)
+}
+
+#' @export
+getCylSummary.TreeStructs <- function(obj, idx = NA, concat = T) {
+    if (! is.na(idx))
+        return(getTreestructs(obj)$cyl_summ[[idx]])
+    else if (concat) {
+        return(obj$treestructs %>% unnest(cyl_summ))
+    } else {
+        return(getTreestructs(obj)$cyl_summ)
+    }
+}
+
 # Validators ####
 
 validate_treestruct.TreeStructs <- function(obj) {
@@ -112,9 +128,9 @@ calc_summary_cyls.default <- function(ts, furcations_corrected = F) {
 
     # collapse by branchnum
     cyl_summ = ts %>% group_by(branchnum) %>%
-        summarize(rad_mean = mean(rad, na.rm = T),
+        summarize(rad = mean(rad, na.rm = T),
                   len = sum(len, na.rm = T),
-                  pathlen_mean = mean(pathlen, na.rm = T),
+                  pathlen = mean(pathlen, na.rm = T),
                   n_furcation = max(n_furcation, na.rm = T),
                   num_cyls_in_branch = n(),
                   parent_branchnum = first(parent_branchnum))
@@ -123,9 +139,9 @@ calc_summary_cyls.default <- function(ts, furcations_corrected = F) {
     cyl_summ = cyl_summ %>%
         left_join(cyl_summ %>%
                       select(branchnum,
-                             parent_rad = rad_mean,
-                             parent_len = len,
-                             parent_n_furcation = n_furcation),
+                             rad_parent = rad,
+                             len_parent = len,
+                             n_furcation_parent = n_furcation),
                       # rename(parent_rad = rad_mean,
                       #        parent_len = len,
                       #        parent_n_furcation = n_furcation),
@@ -310,20 +326,25 @@ make_convhull.default <- function(ts) {
                 crown_proj_area_vert_convhull = this_vert2d_convhull$vol))
 }
 
-
 #' @export
 radius_scaling.TreeStructs <- function(obj) {
-    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), radius_scaling.default)
-    obj$treestructs$a_median = purrr::map_dbl(getTreestruct(obj, concat = FALSE), function(x) median(x$a, na.rm = T))
+    if (! "cyl_summ" %in% names(obj$treestructs)) obj = calc_summary_cyls(obj)
+    obj$treestructs$cyl_summ = purrr::map(getCylSummary(obj, concat = FALSE), radius_scaling.default)
+    obj$treestructs$a_median = purrr::map_dbl(getCylSummary(obj, concat = FALSE), function(x) median(x$a, na.rm = T))
     return(obj)
 }
 
-
+#' @export
+length_scaling.TreeStructs <- function(obj) {
+    if (! "cyl_summ" %in% names(obj$treestructs)) obj = calc_summary_cyls(obj)
+    obj$treestructs$cyl_summ = purrr::map(getCylSummary(obj, concat = FALSE), length_scaling.default)
+    obj$treestructs$b_median = purrr::map_dbl(getCylSummary(obj, concat = FALSE), function(x) median(x$b, na.rm = T))
+    return(obj)
+}
 
 #' @export
 run_all.TreeStructs <- function(obj, calc_dbh = T) {
     obj = make_convhull(obj) # convhull won't work on hand measured branches
     obj = run_all.default(obj, calc_dbh)
-    obj = calc_summary_cyls(obj)
     return(obj)
 }
