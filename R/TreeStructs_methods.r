@@ -78,6 +78,7 @@ getCylSummary.TreeStructs <- function(obj, idx = NA, concat = T) {
 
 # Validators ####
 
+#' @import crayon
 validate_treestruct.TreeStructs <- function(obj) {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
@@ -87,12 +88,16 @@ validate_treestruct.TreeStructs <- function(obj) {
         thisTree = treestructs[[this_row, obj$idcol]]
         this_treestruct = treestructs[[this_row, "treestruct"]]
         if (verbose) message(paste("Validating Tree",thisTree))
-        valid = valid & validate_parents(1:nrow(this_treestruct), this_treestruct[[obj$parent_row_col]],
+        this_valid = T
+        this_valid = this_valid & validate_parents(1:nrow(this_treestruct), this_treestruct[[obj$parent_row_col]],
                                          parents_are_rows = T)
-        valid = valid & is.data.frame(this_treestruct)
+        this_valid = this_valid & is.data.frame(this_treestruct)
             if (!is.data.frame(this_treestruct)) warning("Treestruct not a dataframe error")
 
-        valid = valid & validate_internodes(this_treestruct %>% mutate(internode_id = 1:nrow(this_treestruct)), ignore_error_col = NA)
+        this_valid = this_valid & validate_internodes(this_treestruct %>% mutate(internode_id = 1:nrow(this_treestruct)), ignore_error_col = NA)
+        if (verbose) message(paste(thisTree, ifelse(this_valid, "passed", crayon::red("failed")), "validation"))
+        valid = valid & this_valid
+
     }
     # assume columns are all there.  TODO validate column names.
     return(valid)
@@ -314,6 +319,7 @@ make_convhull.default <- function(ts) {
     tryCatch({
         this_convhull = geometry::convhulln(ts[,c("x_start","y_start","z_start")], options = "FA")
         this_2dconvhull = geometry::convhulln(ts[,c("x_start","y_start")], options = "FA")
+        # TODO make vert2d convhull correct somehow.  it only takes one aspect.  good enough for depth, but not sail area.
         this_vert2d_convhull = geometry::convhulln(ts[,c("y_start","z_start")], options = "FA")
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 

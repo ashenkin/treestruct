@@ -502,7 +502,7 @@ parse_id <- function(obj, ...) {
 #' @rdname parse_id.BranchStructs
 parse_id.BranchStructs <- function(obj, treetag_regex = ".*", branch_regex = "B\\d+[S][H]?", nobranchcode = F, ...) {
     split_treecode <- function(x) {
-        codes = stringr::str_split(x, "-")
+        codes = stringr::str_split(x, "[-_]")
         codes = purrr::map(codes, function(x) {
             x[2] = stringr::str_extract(x[2], treetag_regex)
             return(x)

@@ -2,8 +2,8 @@ Package: treestruct
 Type: Package
 Title: Provides Classes for Analysis and Manipulation of Tree Structure
         Models
-Version: 0.1.24
-Date: 2019-04-17
+Version: 0.1.25
+Date: 2019-05-03
 Author: Alexander Shenkin
 Maintainer: Alexander Shenkin <al@shenkin.org>
 Description: Provides classes to assist in the analysis of structural
