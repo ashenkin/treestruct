@@ -160,6 +160,69 @@ calc_summary_cyls.default <- function(ts, furcations_corrected = F) {
 
 }
 
+#' @export
+find_first_branch <- function(obj) {
+    UseMethod("find_first_branch", obj)
+}
+
+#' @title find_first_branch.TreeStructs
+#' @description Finds the first branches of treestructs
+#' @param obj Treestructs object
+#' @param daughter_threshold Proportion of the radius of the parent branch that daughter
+#'   branches must attain for a furction to be counted as the first branch, Default: 0.25
+#' @return internode_id of parent branch where first furcation occurs
+#' @details Returns NA if no significant furcations found
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname find_first_branch.default
+find_first_branch.TreeStructs <- function(obj, daughter_threshold = 0.25) {
+    if (! check_property(obj, "internodes_reordered")) obj = reorder_internodes(obj)
+    if (! check_property(obj, "furcations_corrected")) obj = correct_furcations(obj)
+
+    obj$treestructs$first_branch_id = purrr::map(getTreestruct(obj, concat = FALSE), find_first_branch, daughter_threshold = daughter_threshold)
+    return(obj)
+}
+
+#' @title find_first_branch.default
+#' @description Finds the first branch in a treestruct dataframe
+#' @param ts treestruct dataframe
+#' @param daughter_threshold Proportion of the radius of the parent branch that daughter
+#'   branches must attain for a furction to be counted as the first branch, Default: 0.25
+#' @return internode_id of parent branch where first furcation occurs
+#' @details Returns NA if no significant furcations found
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname find_first_branch.default
+
+find_first_branch.default <- function(ts, daughter_threshold = 0.25) {
+    # assume ts is ordered properly
+    # climb from bottom upwards, looking for first major furcation
+    ts = ts[nrow(ts):1,]
+    furc_rows = which(ts$n_furcation > 1)
+    for (this_furc_row in furc_rows) {
+        daughter_radii = ts %>% filter(parent_id == ts[this_furc_row,]$internode_id) %>% pull(rad)
+        # major furcation if two daughters at least 1/4 as wide as parent
+        num_large_daughters = sum(daughter_radii > ts[this_furc_row,]$rad * daughter_threshold)
+        if (num_large_daughters >= 2) {
+            return(ts[this_furc_row,]$internode_id)
+        }
+    }
+    verbose <- getOption("treestruct_verbose")
+    if(is.null(verbose)) verbose <- FALSE
+    if (verbose) message("No significant furcation found that could be called a first branch")
+    return(NA)
+}
+
 # Structure Analysis ####
 
 
