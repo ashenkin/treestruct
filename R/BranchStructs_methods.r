@@ -490,7 +490,8 @@ parse_id <- function(obj, ...) {
 #' @param obj treestruct object
 #' @param treetag_regex regex to match tree tag, Default: '.*'
 #' @param branch_regex regex to match branchcode, Default: 'B\\ded+[S][H]?'
-#' @return OUTPUT_DESCRIPTION
+#' @param nobranchcode set to TRUE if there is no branch code in the identifier, Default: FALSE
+#' @return treestruct object
 #' @details This function assumes the id column (idcol) is in the form of "plotcode-treecode-branchcode"
 #' @examples
 #' \dontrun{
