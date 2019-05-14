@@ -660,7 +660,7 @@ calc_pathlen.BranchStructs <- function(bss) {
                           path_frac = pathlen_mean/pathlen_max )
 
             treestructs$treestruct = list(treestruct)
-            treestructs = treestructs %>% bind_cols(summary_pathlen_vec)
+            treestructs = treestructs %>% dplyr::bind_cols(summary_pathlen_vec)
         } else {
             warning(paste("Invalid internode order or multiple components in", treestructs[[bss$idcol]], ". Just calculating total length."))
             treestruct$pathlen = NA
