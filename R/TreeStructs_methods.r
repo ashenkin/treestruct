@@ -36,7 +36,7 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) 
     newobj$treestructs = treestructs %>%
         dplyr::group_by_(newobj$idcol) %>%
         # add id columns to match hand branch measurements
-        dplyr::mutate(!!rlang::sym(obj$internodeid_col) := 1:n(),
+        dplyr::mutate(!!rlang::sym(obj$internodeid_col) := 1:dplyr::n(),
                       #!!rlang::sym(obj$parentid_col) :=
                           #!!rlang::sym(obj$internodeid_col)[if_else(rlang::UQ(rlang::sym(obj$parent_row_col)) %in% 0, NA, !!rlang::sym(obj$parent_row_col))]) %>%
                       # TODO fix the direct reference to column names below.  can't figure out how to make it dynamic in ifelse...
@@ -70,7 +70,7 @@ getCylSummary.TreeStructs <- function(obj, idx = NA, concat = T) {
     if (! is.na(idx))
         return(getTreestructs(obj)$cyl_summ[[idx]])
     else if (concat) {
-        return(obj$treestructs %>% unnest(cyl_summ))
+        return(obj$treestructs %>% tidyr::unnest(cyl_summ))
     } else {
         return(getTreestructs(obj)$cyl_summ)
     }
@@ -94,7 +94,7 @@ validate_treestruct.TreeStructs <- function(obj) {
         this_valid = this_valid & is.data.frame(this_treestruct)
             if (!is.data.frame(this_treestruct)) warning("Treestruct not a dataframe error")
 
-        this_valid = this_valid & validate_internodes(this_treestruct %>% mutate(internode_id = 1:nrow(this_treestruct)), ignore_error_col = NA)
+        this_valid = this_valid & validate_internodes(this_treestruct %>% dplyr::mutate(internode_id = 1:nrow(this_treestruct)), ignore_error_col = NA)
         if (verbose) message(paste(thisTree, ifelse(this_valid, "passed", crayon::red("failed")), "validation"))
         valid = valid & this_valid
 
@@ -107,7 +107,7 @@ validate_treestruct.TreeStructs <- function(obj) {
 
 #' @export
 make_compatible.TreeStructs <- function(obj) {
-    getTreestruct(obj) %>% select(file:branch, len, parent_row, daughter_row, internode_id:pathlen)
+    getTreestruct(obj) %>% dplyr::select(file:branch, len, parent_row, daughter_row, internode_id:pathlen)
 }
 
 #' @export
@@ -132,18 +132,18 @@ calc_summary_cyls.default <- function(ts, furcations_corrected = F) {
     }
 
     # collapse by branchnum
-    cyl_summ = ts %>% group_by(branchnum) %>%
-        summarize(rad = mean(rad, na.rm = T),
+    cyl_summ = ts %>% dplyr::group_by(branchnum) %>%
+        dplyr::summarize(rad = mean(rad, na.rm = T),
                   len = sum(len, na.rm = T),
                   pathlen = mean(pathlen, na.rm = T),
                   n_furcation = max(n_furcation, na.rm = T),
-                  num_cyls_in_branch = n(),
-                  parent_branchnum = first(parent_branchnum))
+                  num_cyls_in_branch = dplyr::n(),
+                  parent_branchnum = dplyr::first(parent_branchnum))
 
     # join parent branch metrics to each row to facilitate branch scaling calculations
     cyl_summ = cyl_summ %>%
-        left_join(cyl_summ %>%
-                      select(branchnum,
+        dplyr::left_join(cyl_summ %>%
+                      dplyr::select(branchnum,
                              rad_parent = rad,
                              len_parent = len,
                              n_furcation_parent = n_furcation),
@@ -152,7 +152,7 @@ calc_summary_cyls.default <- function(ts, furcations_corrected = F) {
                       #        parent_n_furcation = n_furcation),
                   by = c("parent_branchnum" = "branchnum")) %>%
         # rename cols for compatibility with treestruct dataframe
-        rename(parent_id = parent_branchnum, internode_id = branchnum)
+        dplyr::rename(parent_id = parent_branchnum, internode_id = branchnum)
 
     cyl_summ = setTips(cyl_summ)
 
@@ -210,7 +210,7 @@ find_first_branch.default <- function(ts, daughter_threshold = 0.25) {
     ts = ts[nrow(ts):1,]
     furc_rows = which(ts$n_furcation > 1)
     for (this_furc_row in furc_rows) {
-        daughter_radii = ts %>% filter(parent_id == ts[this_furc_row,]$internode_id) %>% pull(rad)
+        daughter_radii = ts %>% dplyr::filter(parent_id == ts[this_furc_row,]$internode_id) %>% dplyr::pull(rad)
         # major furcation if two daughters at least 1/4 as wide as parent
         num_large_daughters = sum(daughter_radii > ts[this_furc_row,]$rad * daughter_threshold)
         if (num_large_daughters >= 2) {
@@ -347,7 +347,7 @@ make_convhull.TreeStructs <- function(obj) {
 
     # make sure to overwrite columns
     suppressWarnings(
-        obj$treestructs <- obj$treestructs %>% select(-one_of("^convhull$", "^convhull2d$", "^convhull2d_vert$", "^crown_vol_convhull$",
+        obj$treestructs <- obj$treestructs %>% dplyr::select(-one_of("^convhull$", "^convhull2d$", "^convhull2d_vert$", "^crown_vol_convhull$",
                                                         "^crown_surfarea_convhull$", "^crown_proj_area_convhull$",
                                                         "^crown_proj_area_vert_convhull$"))
     )
