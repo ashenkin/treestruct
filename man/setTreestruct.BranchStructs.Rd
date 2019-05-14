@@ -4,7 +4,8 @@
 \alias{setTreestruct.BranchStructs}
 \title{setTreestruct.BranchStructs}
 \usage{
-setTreestruct.BranchStructs(obj, treestructs, convert_to_meters = T)
+\method{setTreestruct}{BranchStructs}(obj, treestructs,
+  convert_to_meters = T)
 }
 \arguments{
 \item{obj}{BranchStructs object}

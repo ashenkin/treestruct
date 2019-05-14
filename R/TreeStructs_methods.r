@@ -36,7 +36,7 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) 
     newobj$treestructs = treestructs %>%
         dplyr::group_by_(newobj$idcol) %>%
         # add id columns to match hand branch measurements
-        dplyr::mutate(!!rlang::sym(obj$internodeid_col) := 1:n(),
+        dplyr::mutate(!!rlang::sym(obj$internodeid_col) := 1:dplyr::n(),
                       #!!rlang::sym(obj$parentid_col) :=
                           #!!rlang::sym(obj$internodeid_col)[if_else(rlang::UQ(rlang::sym(obj$parent_row_col)) %in% 0, NA, !!rlang::sym(obj$parent_row_col))]) %>%
                       # TODO fix the direct reference to column names below.  can't figure out how to make it dynamic in ifelse...
@@ -70,7 +70,7 @@ getCylSummary.TreeStructs <- function(obj, idx = NA, concat = T) {
     if (! is.na(idx))
         return(getTreestructs(obj)$cyl_summ[[idx]])
     else if (concat) {
-        return(obj$treestructs %>% unnest(cyl_summ))
+        return(obj$treestructs %>% tidyr::unnest(cyl_summ))
     } else {
         return(getTreestructs(obj)$cyl_summ)
     }
@@ -78,6 +78,7 @@ getCylSummary.TreeStructs <- function(obj, idx = NA, concat = T) {
 
 # Validators ####
 
+#' @import crayon
 validate_treestruct.TreeStructs <- function(obj) {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
@@ -87,12 +88,16 @@ validate_treestruct.TreeStructs <- function(obj) {
         thisTree = treestructs[[this_row, obj$idcol]]
         this_treestruct = treestructs[[this_row, "treestruct"]]
         if (verbose) message(paste("Validating Tree",thisTree))
-        valid = valid & validate_parents(1:nrow(this_treestruct), this_treestruct[[obj$parent_row_col]],
+        this_valid = T
+        this_valid = this_valid & validate_parents(1:nrow(this_treestruct), this_treestruct[[obj$parent_row_col]],
                                          parents_are_rows = T)
-        valid = valid & is.data.frame(this_treestruct)
+        this_valid = this_valid & is.data.frame(this_treestruct)
             if (!is.data.frame(this_treestruct)) warning("Treestruct not a dataframe error")
 
-        valid = valid & validate_internodes(this_treestruct %>% mutate(internode_id = 1:nrow(this_treestruct)), ignore_error_col = NA)
+        this_valid = this_valid & validate_internodes(this_treestruct %>% dplyr::mutate(internode_id = 1:nrow(this_treestruct)), ignore_error_col = NA)
+        if (verbose) message(paste(thisTree, ifelse(this_valid, "passed", crayon::red("failed")), "validation"))
+        valid = valid & this_valid
+
     }
     # assume columns are all there.  TODO validate column names.
     return(valid)
@@ -102,7 +107,7 @@ validate_treestruct.TreeStructs <- function(obj) {
 
 #' @export
 make_compatible.TreeStructs <- function(obj) {
-    getTreestruct(obj) %>% select(file:branch, len, parent_row, daughter_row, internode_id:pathlen)
+    getTreestruct(obj) %>% dplyr::select(file:branch, len, parent_row, daughter_row, internode_id:pathlen)
 }
 
 #' @export
@@ -127,18 +132,18 @@ calc_summary_cyls.default <- function(ts, furcations_corrected = F) {
     }
 
     # collapse by branchnum
-    cyl_summ = ts %>% group_by(branchnum) %>%
-        summarize(rad = mean(rad, na.rm = T),
+    cyl_summ = ts %>% dplyr::group_by(branchnum) %>%
+        dplyr::summarize(rad = mean(rad, na.rm = T),
                   len = sum(len, na.rm = T),
                   pathlen = mean(pathlen, na.rm = T),
                   n_furcation = max(n_furcation, na.rm = T),
-                  num_cyls_in_branch = n(),
-                  parent_branchnum = first(parent_branchnum))
+                  num_cyls_in_branch = dplyr::n(),
+                  parent_branchnum = dplyr::first(parent_branchnum))
 
     # join parent branch metrics to each row to facilitate branch scaling calculations
     cyl_summ = cyl_summ %>%
-        left_join(cyl_summ %>%
-                      select(branchnum,
+        dplyr::left_join(cyl_summ %>%
+                      dplyr::select(branchnum,
                              rad_parent = rad,
                              len_parent = len,
                              n_furcation_parent = n_furcation),
@@ -147,12 +152,75 @@ calc_summary_cyls.default <- function(ts, furcations_corrected = F) {
                       #        parent_n_furcation = n_furcation),
                   by = c("parent_branchnum" = "branchnum")) %>%
         # rename cols for compatibility with treestruct dataframe
-        rename(parent_id = parent_branchnum, internode_id = branchnum)
+        dplyr::rename(parent_id = parent_branchnum, internode_id = branchnum)
 
     cyl_summ = setTips(cyl_summ)
 
     return(cyl_summ)
 
+}
+
+#' @export
+find_first_branch <- function(obj) {
+    UseMethod("find_first_branch", obj)
+}
+
+#' @title find_first_branch.TreeStructs
+#' @description Finds the first branches of treestructs
+#' @param obj Treestructs object
+#' @param daughter_threshold Proportion of the radius of the parent branch that daughter
+#'   branches must attain for a furction to be counted as the first branch, Default: 0.25
+#' @return internode_id of parent branch where first furcation occurs
+#' @details Returns NA if no significant furcations found
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname find_first_branch.default
+find_first_branch.TreeStructs <- function(obj, daughter_threshold = 0.25) {
+    if (! check_property(obj, "internodes_reordered")) obj = reorder_internodes(obj)
+    if (! check_property(obj, "furcations_corrected")) obj = correct_furcations(obj)
+
+    obj$treestructs$first_branch_id = purrr::map(getTreestruct(obj, concat = FALSE), find_first_branch, daughter_threshold = daughter_threshold)
+    return(obj)
+}
+
+#' @title find_first_branch.default
+#' @description Finds the first branch in a treestruct dataframe
+#' @param ts treestruct dataframe
+#' @param daughter_threshold Proportion of the radius of the parent branch that daughter
+#'   branches must attain for a furction to be counted as the first branch, Default: 0.25
+#' @return internode_id of parent branch where first furcation occurs
+#' @details Returns NA if no significant furcations found
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname find_first_branch.default
+
+find_first_branch.default <- function(ts, daughter_threshold = 0.25) {
+    # assume ts is ordered properly
+    # climb from bottom upwards, looking for first major furcation
+    ts = ts[nrow(ts):1,]
+    furc_rows = which(ts$n_furcation > 1)
+    for (this_furc_row in furc_rows) {
+        daughter_radii = ts %>% dplyr::filter(parent_id == ts[this_furc_row,]$internode_id) %>% dplyr::pull(rad)
+        # major furcation if two daughters at least 1/4 as wide as parent
+        num_large_daughters = sum(daughter_radii > ts[this_furc_row,]$rad * daughter_threshold)
+        if (num_large_daughters >= 2) {
+            return(ts[this_furc_row,]$internode_id)
+        }
+    }
+    verbose <- getOption("treestruct_verbose")
+    if(is.null(verbose)) verbose <- FALSE
+    if (verbose) message("No significant furcation found that could be called a first branch")
+    return(NA)
 }
 
 # Structure Analysis ####
@@ -279,7 +347,7 @@ make_convhull.TreeStructs <- function(obj) {
 
     # make sure to overwrite columns
     suppressWarnings(
-        obj$treestructs <- obj$treestructs %>% select(-one_of("^convhull$", "^convhull2d$", "^convhull2d_vert$", "^crown_vol_convhull$",
+        obj$treestructs <- obj$treestructs %>% dplyr::select(-one_of("^convhull$", "^convhull2d$", "^convhull2d_vert$", "^crown_vol_convhull$",
                                                         "^crown_surfarea_convhull$", "^crown_proj_area_convhull$",
                                                         "^crown_proj_area_vert_convhull$"))
     )
@@ -314,6 +382,7 @@ make_convhull.default <- function(ts) {
     tryCatch({
         this_convhull = geometry::convhulln(ts[,c("x_start","y_start","z_start")], options = "FA")
         this_2dconvhull = geometry::convhulln(ts[,c("x_start","y_start")], options = "FA")
+        # TODO make vert2d convhull correct somehow.  it only takes one aspect.  good enough for depth, but not sail area.
         this_vert2d_convhull = geometry::convhulln(ts[,c("y_start","z_start")], options = "FA")
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 

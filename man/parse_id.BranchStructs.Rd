@@ -13,9 +13,11 @@
 \item{treetag_regex}{regex to match tree tag, Default: '.*'}
 
 \item{branch_regex}{regex to match branchcode, Default: 'B\ded+\link[=H]{S}?'}
+
+\item{nobranchcode}{set to TRUE if there is no branch code in the identifier, Default: FALSE}
 }
 \value{
-OUTPUT_DESCRIPTION
+treestruct object
 }
 \description{
 parse the plot, tree tag, and branch identifier out from the concatenated identifier

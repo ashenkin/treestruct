@@ -153,7 +153,7 @@ getTreestruct.BranchStructs <- function(obj, concat = TRUE) {
         #     # just treestruct is nested
         #     ret = ret %>% unnest()
         # }
-        return(obj$treestructs %>% unnest(treestruct))
+        return(obj$treestructs %>% tidyr::unnest(treestruct))
     } else {
         return(obj$treestructs$treestruct)
     }
@@ -204,7 +204,7 @@ getTips <- function(obj) {
 getTips.BranchStructs <- function(obj, make_compatible = T) {
     if (make_compatible) ret = obj %>% make_compatible()
     else ret = getTreestruct(obj, concat = T)
-    ret = ret %>% filter(tip)
+    ret = ret %>% dplyr::filter(tip)
     return(ret)
 }
 
@@ -238,7 +238,7 @@ setGraph.BranchStructs <- function(obj) {
             dplyr::select(id, label, everything())
         allnodes = unique(c(thisedgelist$from, thisedgelist$to))
         missing_nodes = allnodes[ is.na(match(allnodes, thisnodelist$id)) ]
-        thisnodelist = thisnodelist %>% bind_rows(data.frame(id = missing_nodes))
+        thisnodelist = thisnodelist %>% dplyr::bind_rows(data.frame(id = missing_nodes))
         this_igraph = igraph::graph_from_data_frame(d = thisedgelist, vertices = thisnodelist, directed = TRUE)
         return(tidygraph::as_tbl_graph(this_igraph))
     }
@@ -279,7 +279,7 @@ getSummary.BranchStructs <- function(obj) {
     is_listcol = colclasses %in% "list"
     listcols = names(colclasses)[!is_listcol]
     if (sum(is_listcol) > 0) {
-        ret = obj$treestructs %>% select(listcols)
+        ret = obj$treestructs %>% dplyr::select(listcols)
     } else {
         ret = obj$treestructs
     }
@@ -380,7 +380,7 @@ reorder_internodes.BranchStructs <- function(obj) {
 
 #' @export
 reorder_internodes.default <- function(ts) {
-    tscopy = ts %>% select(internode_id, parent_id, tip)
+    tscopy = ts %>% dplyr::select(internode_id, parent_id, tip)
     ntips = sum(tscopy$tip)
     tscopy$orig_row = 1:nrow(ts)
     tscopy$parent_row = match(tscopy$parent_id, tscopy$internode_id)
@@ -472,7 +472,7 @@ assign_branch_num.default <- function(ts) {
     ts$order_in_branch = branchnum_ret[["order_in_branch"]]
     # build branch topology when assigning branch numbers
     ts$parent_branchnum = ts$branchnum[match(ts$parent_id, ts$internode_id)]
-    branch_lookup = ts %>% select(branchnum, parent_branchnum) %>% filter(branchnum != parent_branchnum)
+    branch_lookup = ts %>% dplyr::select(branchnum, parent_branchnum) %>% dplyr::filter(branchnum != parent_branchnum)
     ts$parent_branchnum = branch_lookup$parent_branchnum[match(ts$branchnum, branch_lookup$branchnum)]
 
     return(ts)
@@ -490,7 +490,8 @@ parse_id <- function(obj, ...) {
 #' @param obj treestruct object
 #' @param treetag_regex regex to match tree tag, Default: '.*'
 #' @param branch_regex regex to match branchcode, Default: 'B\\ded+[S][H]?'
-#' @return OUTPUT_DESCRIPTION
+#' @param nobranchcode set to TRUE if there is no branch code in the identifier, Default: FALSE
+#' @return treestruct object
 #' @details This function assumes the id column (idcol) is in the form of "plotcode-treecode-branchcode"
 #' @examples
 #' \dontrun{
@@ -502,7 +503,7 @@ parse_id <- function(obj, ...) {
 #' @rdname parse_id.BranchStructs
 parse_id.BranchStructs <- function(obj, treetag_regex = ".*", branch_regex = "B\\d+[S][H]?", nobranchcode = F, ...) {
     split_treecode <- function(x) {
-        codes = stringr::str_split(x, "-")
+        codes = stringr::str_split(x, "[-_]")
         codes = purrr::map(codes, function(x) {
             x[2] = stringr::str_extract(x[2], treetag_regex)
             return(x)
@@ -540,7 +541,7 @@ make_compatible <- function(obj) {
 make_compatible.BranchStructs <- function(obj) {
     # note - returns dataframe, not object
     #TODO change column types to be compatible
-    getTreestruct(obj, concat = T) %>% select(branch_code:branch, internode_id:is_broken, d_child:tip, branchnum:pathlen)
+    getTreestruct(obj, concat = T) %>% dplyr::select(branch_code:branch, internode_id:is_broken, d_child:tip, branchnum:pathlen)
 }
 
 # Structure Analysis ####
@@ -643,40 +644,45 @@ calc_pathlen.BranchStructs <- function(bss) {
         # TODO maybe split out treetruct and treestructs operations into different functions....
         treestruct = treestructs$treestruct[[1]]
         parent_row = match(treestruct$parent_id, treestruct$internode_id)
-        treestruct = treestruct %>% mutate(len_tot = sum(len, na.rm = T))
+        treestruct = treestruct %>% dplyr::mutate(len_tot = sum(len, na.rm = T))
         if (validate_internode_order(treestruct[[bss$parentid_col]], treestruct[[bss$internodeid_col]], parents_are_rows = F) &
             treestructs$num_components == 1) {
             # calc pathlength along entire network for each node
             if (treestructs$branch_code == "SAF05-T8-B1S") { browser() }
             treestruct = treestruct %>%
-                mutate(pathlen = calc_pathlen_cpp(treestruct$len, parent_row))
+                dplyr::mutate(pathlen = calc_pathlen_cpp(treestruct$len, parent_row))
             # summary pathlength stats
             summary_pathlen_vec =
-                treestruct %>% filter(tip) %>%
-                summarize(pathlen_max = max(pathlen, na.rm = T),
-                          pathlen_min = min(pathlen, na.rm = T),
-                          pathlen_mean = mean(pathlen, na.rm = T),
-                          path_frac = pathlen_mean/pathlen_max )
+                treestruct %>% dplyr::filter(tip) %>%
+                dplyr::summarize(pathlen_max = max(pathlen, na.rm = T),
+                                 pathlen_min = min(pathlen, na.rm = T),
+                                 pathlen_mean = mean(pathlen, na.rm = T),
+                                 path_frac = pathlen_mean/pathlen_max )
 
             treestructs$treestruct = list(treestruct)
-            treestructs = treestructs %>% bind_cols(summary_pathlen_vec)
+            treestructs = treestructs %>% dplyr::bind_cols(summary_pathlen_vec)
         } else {
             warning(paste("Invalid internode order or multiple components in", treestructs[[bss$idcol]], ". Just calculating total length."))
             treestruct$pathlen = NA
             treestructs$treestruct = list(treestruct)
             treestructs = treestructs %>%
-                mutate(pathlen_max = NA,
-                       pathlen_min = NA,
-                       pathlen_mean = NA,
-                       path_frac = NA )
+                dplyr::mutate(pathlen_max = NA,
+                              pathlen_min = NA,
+                              pathlen_mean = NA,
+                              path_frac = NA )
         }
         return(treestructs)
     }
 
     # bss$treestructs = bss$treestructs %>% rowwise() %>% do(pathlen_vec(.)) %>% bind_rows()
     # bss$treestructs = bss$treestructs %>% purrrlyr::by_row(pathlen_vec, .labels = F, .collate = c("cols")) # this messes with the column names
-    bss$treestructs = bss$treestructs %>% mutate(tempcol = 1:n()) %>% group_by(tempcol) %>%
-        do(pathlen_vec(.)) %>% bind_rows() %>% ungroup() %>% select(-tempcol) # rowwise turns "." into a list.  group_by(1:n()) doesn't...
+    bss$treestructs = bss$treestructs %>%
+        dplyr::mutate(tempcol = 1:dplyr::n()) %>%
+        dplyr::group_by(tempcol) %>%
+        dplyr::do(pathlen_vec(.)) %>%
+        dplyr::bind_rows() %>%
+        dplyr::ungroup() %>%
+        dplyr::select(-tempcol) # rowwise turns "." into a list.  group_by(1:n()) doesn't...
 
     # calc total pathlength
     bss = calc_len(bss)
@@ -724,11 +730,11 @@ join_parents_to_treestruct <- function(obj) {
 #' @export
 join_parents_to_treestruct.default <- function(ts) {
     if (! "d_parent_internode" %in% names(ts)) {
-    ts = ts %>%
-        dplyr::left_join(
-            ts %>% dplyr::select(c(internode_id, d_child, n_furcation)) %>%
-                dplyr::rename(d_parent_internode = d_child, n_furcation_parent = n_furcation),
-            by = c("parent_id" = "internode_id"))
+        ts = ts %>%
+            dplyr::left_join(
+                ts %>% dplyr::select(c(internode_id, d_child, n_furcation)) %>%
+                    dplyr::rename(d_parent_internode = d_child, n_furcation_parent = n_furcation),
+                by = c("parent_id" = "internode_id"))
     } else {
         verbose <- getOption("treestruct_verbose")
         if(is.null(verbose)) verbose <- FALSE
@@ -866,28 +872,28 @@ visNetwork.BranchStructs <- function(bss, index, hierarchical = T, width_factor 
     if (is.character(index)) {
         index = enquo(index)
         this_tidygraph = bss$treestructs %>%
-            filter(!!sym(bss$idcol) := !!index) %>%
-            pull(graph)
+            dplyr::filter(!!sym(bss$idcol) := !!index) %>%
+            dplyr::pull(graph)
         this_id = bss$treestructs %>%
-            filter(!!sym(bss$idcol) := !!index) %>%
-            pull(!!sym(bss$idcol))
+            dplyr::filter(!!sym(bss$idcol) := !!index) %>%
+            dplyr::pull(!!sym(bss$idcol))
     } else if (is.numeric(index)) {
         # index is lookup number
         this_tidygraph = bss$treestructs[index,]$graph[[1]]
         this_id = bss$treestructs[index,bss$idcol][[1]]
     }
     netdata = visNetwork::toVisNetworkData(this_tidygraph)
-    netdata$edges = netdata$edges %>% mutate(width = d_parent * width_factor, length = len * length_factor)
+    netdata$edges = netdata$edges %>% dplyr::mutate(width = d_parent * width_factor, length = len * length_factor)
     ret =
         visNetwork::visNetwork(netdata$nodes, netdata$edges, layout = "layout_with_fr", main = this_id) %>%
-            visNodes(font = list(size = 25) ,
-                     scaling = list(label = list(
-                         enabled = TRUE,
-                         min = 25, max = 100,
-                         maxVisible = 100,
-                         drawThreshold = 1
-                     )))
-    if (hierarchical) ret = ret %>% visHierarchicalLayout()
+        visNetwork::visNodes(font = list(size = 25) ,
+                             scaling = list(label = list(
+                                 enabled = TRUE,
+                                 min = 25, max = 100,
+                                 maxVisible = 100,
+                                 drawThreshold = 1
+                             )))
+    if (hierarchical) ret = ret %>% visNetwork::visHierarchicalLayout()
     return(ret)
 }
 

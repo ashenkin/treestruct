@@ -27,9 +27,9 @@ readQSM.mat <- function(qsmfile, qsmver = 2.3) {
     #names(QSMmat[["qsm"]]) = c("cylinder", "branch", "treedata", "rundata", "pmdistance", "triangulation")  # names below 1st level in hierarchy dropped by R.matlab it seems
 
     cyldata = QSMmat$qsm$cylinder
-    cyldata = cyldata %>% purrr::map(`[[`, 1) %>% as.data.frame() %>% bind_cols()
+    cyldata = cyldata %>% purrr::map(`[[`, 1) %>% as.data.frame() %>% dplyr::bind_cols()
     branchdata = QSMmat$qsm$branch
-    branchdata = branchdata %>% purrr::map(`[[`, 1) %>% as.data.frame() %>% bind_cols()
+    branchdata = branchdata %>% purrr::map(`[[`, 1) %>% as.data.frame() %>% dplyr::bind_cols()
 
     # CylData_cols = c("rad", "len", "sta", "axe", "cpar", "cext", "boc", "added", "unmodradius")
     # BranchData_cols = c("bord", "bpar", "bvol", "blen", "bang")
