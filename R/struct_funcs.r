@@ -31,7 +31,7 @@ validate_internode_order <- function(parents, internode_id = NA, parents_are_row
     } else parent_row = parents
 
     rowdiff = parent_row - 1:length(parent_row)
-    good_order = all(rowdiff < 0, na.rm = TRUE) # every row should have its parent above it
+    good_order = all(rowdiff > 0, na.rm = TRUE) # every row should have its parent below it
     return(good_order)
 }
 
