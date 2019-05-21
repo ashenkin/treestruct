@@ -282,11 +282,8 @@ assign_cyls_to_crown.default <- function(ts, first_branch_id) {
         return(ts)
     }
     ts$crown = T
-    if (is.na(first_branch_id)) ts$crown = F # if can't find first branch, don't make a crown
-    else {
-        first_branch_row = which(ts$internode_id == first_branch_id)
-        ts[first_branch_row:nrow(ts),]$crown = F
-    }
+    first_branch_row = which(ts$internode_id == first_branch_id)
+    ts[first_branch_row:nrow(ts),]$crown = F
     return(ts)
 }
 
@@ -447,6 +444,8 @@ make_convhull.default <- function(ts, trees_not_branches) {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
 
+    crown_defined = trees_not_branches & !any(is.na(ts$crown))
+
     tryCatch({
         this_convhull = NA
         this_vert2d_convhull = NA
@@ -454,13 +453,13 @@ make_convhull.default <- function(ts, trees_not_branches) {
         this_2dconvhull = geometry::convhulln(ts[,c("x_start","y_start")], options = "FA")
 
         # convhulls for trees (same as branches, but don't make some if we can't ID first branch)
-        if (trees_not_branches & any(ts$crown)) {
+        if (crown_defined) {
             ts = subset(ts, ts$crown) # make crown convex hulls for full trees
             this_convhull = geometry::convhulln(ts[,c("x_start","y_start","z_start")], options = "FA")
             # TODO make vert2d convhull correct somehow.  it only takes one aspect.  good enough for depth, but not sail area.
             this_vert2d_convhull = geometry::convhulln(ts[,c("y_start","z_start")], options = "FA")
 
-        } else {
+        } else if (! trees_not_branches) {
         # convhulls for branches
             this_convhull = geometry::convhulln(ts[,c("x_start","y_start","z_start")], options = "FA")
             this_vert2d_convhull = geometry::convhulln(ts[,c("y_start","z_start")], options = "FA")
@@ -471,10 +470,10 @@ make_convhull.default <- function(ts, trees_not_branches) {
     return(list(convhull = this_convhull,
                 convhull2d = this_2dconvhull,
                 convhull2d_vert = this_vert2d_convhull,
-                crown_vol_convhull = this_convhull$vol,
-                crown_surfarea_convhull = this_convhull$area,
-                crown_proj_area_convhull = this_2dconvhull$vol,
-                crown_proj_area_vert_convhull = this_vert2d_convhull$vol))
+                crown_vol_convhull = ifelse(crown_defined, this_convhull$vol, NA),
+                crown_surfarea_convhull = ifelse(crown_defined, this_convhull$area, NA),
+                crown_proj_area_convhull = ifelse(crown_defined, this_2dconvhull$vol, NA),
+                crown_proj_area_vert_convhull = ifelse(crown_defined, this_vert2d_convhull$vol, NA)))
 }
 
 #' @export
