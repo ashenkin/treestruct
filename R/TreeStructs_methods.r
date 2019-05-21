@@ -161,7 +161,7 @@ calc_summary_cyls.default <- function(ts, furcations_corrected = F) {
 }
 
 #' @export
-find_first_branch <- function(obj) {
+find_first_branch <- function(obj, ...) {
     UseMethod("find_first_branch", obj)
 }
 
@@ -184,7 +184,10 @@ find_first_branch.TreeStructs <- function(obj, daughter_threshold = 0.25) {
     if (! check_property(obj, "internodes_reordered")) obj = reorder_internodes(obj)
     if (! check_property(obj, "furcations_corrected")) obj = correct_furcations(obj)
 
-    obj$treestructs$first_branch_id = purrr::map(getTreestruct(obj, concat = FALSE), find_first_branch, daughter_threshold = daughter_threshold)
+    # TODO: should this work on cyl_summ instead of treestruct?  Not sure what constraints treeQSM puts on daughter radii...
+    # Potential issue is mapping back from cyl_summ to treestruct..
+    obj$treestructs$first_branch_id = purrr::map_int(getTreestruct(obj, concat = FALSE), find_first_branch, daughter_threshold = daughter_threshold)
+    obj$first_branch_assigned = TRUE
     return(obj)
 }
 
@@ -223,8 +226,71 @@ find_first_branch.default <- function(ts, daughter_threshold = 0.25) {
     return(NA)
 }
 
-# Structure Analysis ####
+#' @export
+assign_cyls_to_crown <- function(obj, ...) {
+    UseMethod("assign_cyls_to_crown", obj)
+}
 
+#' @title assign_cyls_to_crown.TreeStructs
+#' @description Assigns cylinders to crown and stem based on where the first branch occurs
+#' @param obj Treestructs object
+#' @param daughter_threshold Proportion of the radius of the parent branch that daughter
+#'   branches must attain for a furction to be counted as the first branch, Default: 0.25
+#' @return treestruct object with crown column assigned
+#' @details Returns NA if no significant furcations found
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname assign_cyls_to_crown.default
+assign_cyls_to_crown.TreeStructs <- function(obj, daughter_threshold = 0.25) {
+    if (! check_property(obj, "internodes_reordered")) obj = reorder_internodes(obj)
+    if (! check_property(obj, "furcations_corrected")) obj = correct_furcations(obj)
+    if (! check_property(obj, "first_branch_assigned")) obj = find_first_branch(obj, daughter_threshold)
+
+    # TODO figure out how to pass arguments by name (tried with pmap, but wasn't working)
+    obj$treestructs$treestruct = purrr::map2(getTreestruct(obj, concat = FALSE),
+                                             getTreestructs(obj)$first_branch_id,
+                                             assign_cyls_to_crown.default)
+    obj$cyls_assigned_to_crown = T
+    return(obj)
+}
+
+#' @title assign_cyls_to_crown.default
+#' @description Assigns logical crown column in a treestruct dataframe
+#' @param ts treestruct dataframe
+#' @return treestruct dataframe
+#' @details Returns NA in crown column if no first branch was found
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname assign_cyls_to_crown.default
+
+assign_cyls_to_crown.default <- function(ts, first_branch_id) {
+    # assume ts is ordered properly, from tip downwards
+    # assign all cylinders to crown until reaching first branch
+    if (is.na(first_branch_id)) {
+        ts$crown = NA
+        warning("No first branch found, returning treestruct with crown = NA")
+        return(ts)
+    }
+    ts$crown = T
+    if (is.na(first_branch_id)) ts$crown = F # if can't find first branch, don't make a crown
+    else {
+        first_branch_row = which(ts$internode_id == first_branch_id)
+        ts[first_branch_row:nrow(ts),]$crown = F
+    }
+    return(ts)
+}
+
+# Structure Analysis ####
 
 #' @export
 calc_dbh <- function(obj) {
@@ -306,7 +372,7 @@ calc_vol.TreeStructs <- function(obj) {
 calc_pathlen.TreeStructs <- function(obj) {
     # overwrite treestruct::calc_pathlen
 
-    valid_internode_order = map_lgl(obj$treestructs$treestruct, ~validate_internode_order(.[[obj$parent_row_col]], parents_are_rows = T))
+    valid_internode_order = map_lgl(obj$treestructs$treestruct, ~validate_internode_order(.[[obj$parentid_col]], .[[obj$internodeid_col]], parents_are_rows = F))
     if (any(!valid_internode_order)) stop(paste("Invalid internode order:", paste(obj$treestructs[[obj$idcol]], collapse = ", ")))
 
     pathlen_vec <- function(treestruct) {
@@ -319,7 +385,8 @@ calc_pathlen.TreeStructs <- function(obj) {
     # mean pathlength to tips of QSM
     obj$treestructs$pathlen_mean = map_dbl(obj$treestructs$treestruct,
                                            .f = function(x) x %>%
-                                               dplyr::filter(!!sym(obj$daughter_row_col) == 0) %>%
+                                               ungroup() %>% # grouping is carrying through from somewhere
+                                               dplyr::filter(tip) %>%
                                                dplyr::summarize(pathlen_mean = mean(pathlen, na.rm = T)) %>%
                                                dplyr::pull(pathlen_mean))
 
@@ -341,7 +408,9 @@ make_convhull.TreeStructs <- function(obj) {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
 
-    convhulls = purrr::map(getTreestruct(obj, concat = FALSE), make_convhull.default)
+    if ((! check_property(obj, "cyls_assigned_to_crown")) & obj$trees_not_branches) obj = assign_cyls_to_crown(obj)
+
+    convhulls = purrr::map(getTreestruct(obj, concat = FALSE), make_convhull.default, trees_not_branches = obj$trees_not_branches)
 
     if (verbose) message("convex hulls created")
 
@@ -372,18 +441,31 @@ make_convhull.TreeStructs <- function(obj) {
 }
 
 #' @export
-make_convhull.default <- function(ts) {
+make_convhull.default <- function(ts, trees_not_branches) {
     #TODO include both start and end points of cylinders
-    #TODO start at first main branch, don't do the entire tree
 
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
 
     tryCatch({
-        this_convhull = geometry::convhulln(ts[,c("x_start","y_start","z_start")], options = "FA")
+        this_convhull = NA
+        this_vert2d_convhull = NA
+        #  make 2d convhull even if couldn't find first branch
         this_2dconvhull = geometry::convhulln(ts[,c("x_start","y_start")], options = "FA")
-        # TODO make vert2d convhull correct somehow.  it only takes one aspect.  good enough for depth, but not sail area.
-        this_vert2d_convhull = geometry::convhulln(ts[,c("y_start","z_start")], options = "FA")
+
+        # convhulls for trees (same as branches, but don't make some if we can't ID first branch)
+        if (trees_not_branches & any(ts$crown)) {
+            ts = subset(ts, ts$crown) # make crown convex hulls for full trees
+            this_convhull = geometry::convhulln(ts[,c("x_start","y_start","z_start")], options = "FA")
+            # TODO make vert2d convhull correct somehow.  it only takes one aspect.  good enough for depth, but not sail area.
+            this_vert2d_convhull = geometry::convhulln(ts[,c("y_start","z_start")], options = "FA")
+
+        } else {
+        # convhulls for branches
+            this_convhull = geometry::convhulln(ts[,c("x_start","y_start","z_start")], options = "FA")
+            this_vert2d_convhull = geometry::convhulln(ts[,c("y_start","z_start")], options = "FA")
+        }
+
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 
     return(list(convhull = this_convhull,
@@ -413,6 +495,9 @@ length_scaling.TreeStructs <- function(obj) {
 
 #' @export
 run_all.TreeStructs <- function(obj, calc_dbh = T) {
+    if (obj$trees_not_branches) {
+        obj = assign_cyls_to_crown(obj) # only assign crown columns for whole trees, not hand-measured branches
+    }
     obj = make_convhull(obj) # convhull won't work on hand measured branches
     obj = run_all.default(obj, calc_dbh)
     return(obj)

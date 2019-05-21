@@ -57,10 +57,13 @@ TreeStructs <- function(dataset = NA, treestructs) {
             branch_order_col = "branch_order",
             index_col = "index_num",
             furcation_col = "n_furcation", # calculated
+            trees_not_branches = T, # are these QSMs trees or branches?  If trees, we do things like calculate crowns vs stems...
             tips_set = F,
             internodes_reordered = F,
             furcations_corrected = F,
-            branchnums_assigned = F
+            branchnums_assigned = F,
+            first_branch_assigned = F,
+            cyls_assigned_to_crown = F
         )
 
     # make treestructs inherit from branchstructs until we create a generic class that both can inherit from
