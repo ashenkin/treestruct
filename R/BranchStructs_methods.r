@@ -373,7 +373,7 @@ reorder_internodes <- function(obj) {
 #' @rdname reorder_internodes.BranchStructs
 reorder_internodes.BranchStructs <- function(obj) {
     if (! check_property(obj, "tips_set")) obj = setTips(obj)
-    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), reorder_internodes)
+    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), reorder_internodes.default)
     obj$internodes_reordered = T
     return(obj)
 }
@@ -409,6 +409,10 @@ reorder_internodes.default <- function(ts) {
     # now reorder ts from last branch to first, and tip downwards within branch
     tscopy = tscopy %>% dplyr::arrange(desc(branchnum), cyl_order_in_branch)
     ts = ts[tscopy$orig_row,]    # use copied dataframe to reorder original (we've added columns to tscopy, etc)
+    # TODO get this working - don't want false parent_row's hanging around.  currently crashing R, don't know why
+    # if ("parent_row" %in% names(ts)) {
+    #     ts$parent_row = match(ts$parent_id, ts$internode_id) # reset parent_row now that we've moved things around.
+    # }
     return(ts)
 }
 
