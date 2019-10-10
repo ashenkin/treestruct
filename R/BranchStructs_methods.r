@@ -409,10 +409,10 @@ reorder_internodes.default <- function(ts) {
     # now reorder ts from last branch to first, and tip downwards within branch
     tscopy = tscopy %>% dplyr::arrange(desc(branchnum), cyl_order_in_branch)
     ts = ts[tscopy$orig_row,]    # use copied dataframe to reorder original (we've added columns to tscopy, etc)
-    # TODO get this working - don't want false parent_row's hanging around.  currently crashing R, don't know why
-    # if ("parent_row" %in% names(ts)) {
-    #     ts$parent_row = match(ts$parent_id, ts$internode_id) # reset parent_row now that we've moved things around.
-    # }
+
+    if ("parent_row" %in% names(ts)) {
+        ts$parent_row = match(ts$parent_id, ts$internode_id) # reset parent_row now that we've moved things around.
+    }
     return(ts)
 }
 
