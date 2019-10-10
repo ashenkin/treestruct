@@ -18,14 +18,14 @@ BEGIN_RCPP
 END_RCPP
 }
 // calc_pathlen_cpp
-NumericVector calc_pathlen_cpp(NumericVector len, NumericVector idx);
-RcppExport SEXP _treestruct_calc_pathlen_cpp(SEXP lenSEXP, SEXP idxSEXP) {
+NumericVector calc_pathlen_cpp(NumericVector len, NumericVector parent_idx);
+RcppExport SEXP _treestruct_calc_pathlen_cpp(SEXP lenSEXP, SEXP parent_idxSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type len(lenSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type idx(idxSEXP);
-    rcpp_result_gen = Rcpp::wrap(calc_pathlen_cpp(len, idx));
+    Rcpp::traits::input_parameter< NumericVector >::type parent_idx(parent_idxSEXP);
+    rcpp_result_gen = Rcpp::wrap(calc_pathlen_cpp(len, parent_idx));
     return rcpp_result_gen;
 END_RCPP
 }

@@ -5,7 +5,7 @@
 \title{import_treestructs_from_dir}
 \usage{
 import_treestructs_from_dir(qsm_path = ".", recursive = F,
-  qsmver = 2.3, filematch_pattern = ".mat", nest = F)
+  qsmver = "by_name", filematch_pattern = ".mat", nest = F)
 }
 \arguments{
 \item{qsm_path}{PARAM_DESCRIPTION, Default: '.'}

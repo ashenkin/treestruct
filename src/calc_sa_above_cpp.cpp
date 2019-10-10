@@ -8,7 +8,8 @@ NumericVector calc_sa_above_cpp(NumericVector sa, NumericVector parentrow) {
     cum = clone(sa);
 
     // accumulate all internodes above downwards from tips.  relies on row order being correct.
-    for(int i = n - 1; i > 0; i--) {
+    //for(int i = n - 1; i > 0; i--) {
+    for(int i = 0; i < n - 1; i++) {
         cum[ (parentrow[i] - 1) ] += cum[ i ];  // -1 since C is zero-based
     }
 
@@ -22,5 +23,5 @@ NumericVector calc_sa_above_cpp(NumericVector sa, NumericVector parentrow) {
 //
 
 /*** R
-calc_sa_above_cpp(1:10, 0:9)
+calc_sa_above_cpp(1:10, c(2:10,0))
 */

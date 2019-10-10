@@ -142,30 +142,6 @@ calc_max_height_ts <- function (ts) {
 #' @export
 Astem_chambers_2004 <- function(DBH) 10^(-0.105-0.686*log10(DBH)+2.208*(log10(DBH))^2-0.627*(log10(DBH))^3)
 
-#' @title FUNCTION_TITLE
-#' @description Calc surface areas of and above each internode
-#' @param tree_structure PARAM_DESCRIPTION
-#' @return OUTPUT_DESCRIPTION
-#' @details DETAILS
-#' @examples
-#' \dontrun{
-#' if(interactive()){
-#'  #EXAMPLE1
-#'  }
-#' }
-#' @export
-#' @rdname calc_sa_above
-
-calc_sa_above <- function(tree_structure) {
-    # wrap cpp function above
-    if (! validate_internode_order(tree_structure$parent_row)) {
-        warning(paste("Bad cyl file order in tree ", tree_structure$tree[1]))
-    }
-    tree_structure$sa_above = calc_sa_above_cpp(tree_structure$surf_area, tree_structure$parent_row)
-    return(tree_structure)
-}
-
-
 #' @title pathlengths
 #' @description FUNCTION_DESCRIPTION
 #' @param treestruct PARAM_DESCRIPTION
@@ -956,4 +932,11 @@ add_tree_data <- function(lidar_trees, dfs = "all", tree_data_df_name = "tree_da
 
     return(lidar_trees)
 
+}
+
+#' @export
+parent_row <- function(parent_id, internode_id) {
+  return(
+    match(parent_id, internode_id)
+  )
 }

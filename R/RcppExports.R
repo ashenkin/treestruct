@@ -6,8 +6,8 @@ assign_branchnum_cpp <- function(furcations, is_tip) {
     .Call(`_treestruct_assign_branchnum_cpp`, furcations, is_tip)
 }
 
-calc_pathlen_cpp <- function(len, idx) {
-    .Call(`_treestruct_calc_pathlen_cpp`, len, idx)
+calc_pathlen_cpp <- function(len, parent_idx) {
+    .Call(`_treestruct_calc_pathlen_cpp`, len, parent_idx)
 }
 
 calc_sa_above_cpp <- function(sa, parentrow) {

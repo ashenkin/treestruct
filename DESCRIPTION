@@ -2,8 +2,8 @@ Package: treestruct
 Type: Package
 Title: Provides Classes for Analysis and Manipulation of Tree Structure
         Models
-Version: 0.1.30
-Date: 2019-05-21
+Version: 0.1.31
+Date: 2019-10-10
 Author: Alexander Shenkin
 Maintainer: Alexander Shenkin <al@shenkin.org>
 Description: Provides classes to assist in the analysis of structural
@@ -17,6 +17,6 @@ RoxygenNote: 6.1.1
 Roxygen: list(markdown = TRUE)
 Imports: magrittr, dplyr, tidyr, Rcpp (>= 0.12.12), doParallel,
         foreach, data.table, rlang, purrr, igraph, tidygraph, stringr,
-        geometry
+        geometry, crayon
 Suggests: rmatio, R.matlab, visNetwork
 LinkingTo: Rcpp
