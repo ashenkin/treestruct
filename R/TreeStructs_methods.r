@@ -133,26 +133,32 @@ calc_summary_cyls.default <- function(ts, furcations_corrected = F) {
 
     # collapse by branchnum
     cyl_summ = ts %>% dplyr::group_by(branchnum) %>%
-        dplyr::summarize(rad = mean(rad, na.rm = T),
-                  len = sum(len, na.rm = T),
-                  pathlen = mean(pathlen, na.rm = T),
-                  n_furcation = max(n_furcation, na.rm = T),
-                  num_cyls_in_branch = dplyr::n(),
-                  parent_branchnum = dplyr::first(parent_branchnum))
+        dplyr::summarize(
+            parent_branchnum = dplyr::first(parent_branchnum),
+            rad = mean(rad, na.rm = T),
+            len = sum(len, na.rm = T),
+            pathlen = mean(pathlen, na.rm = T),
+            n_furcation = max(n_furcation, na.rm = T),
+            num_cyls_in_branch = dplyr::n(),
+            surf_area = {if ( "surf_area" %in% names(ts) ) sum(surf_area) else 2*pi*rad*len},
+            vol = {if ( "vol" %in% names(ts) ) sum(vol) else pi*rad^2*len}
+        )
 
     # join parent branch metrics to each row to facilitate branch scaling calculations
     cyl_summ = cyl_summ %>%
         dplyr::left_join(cyl_summ %>%
-                      dplyr::select(branchnum,
-                             rad_parent = rad,
-                             len_parent = len,
-                             n_furcation_parent = n_furcation),
-                      # rename(parent_rad = rad_mean,
-                      #        parent_len = len,
-                      #        parent_n_furcation = n_furcation),
-                  by = c("parent_branchnum" = "branchnum")) %>%
+                             dplyr::select(branchnum,
+                                           rad_parent = rad,
+                                           len_parent = len,
+                                           n_furcation_parent = n_furcation),
+                         # rename(parent_rad = rad_mean,
+                         #        parent_len = len,
+                         #        parent_n_furcation = n_furcation),
+                         by = c("parent_branchnum" = "branchnum")) %>%
         # rename cols for compatibility with treestruct dataframe
-        dplyr::rename(parent_id = parent_branchnum, internode_id = branchnum)
+        dplyr::rename(parent_id = parent_branchnum, internode_id = branchnum) %>%
+        # add parent_row for compatibility with some routines
+        dplyr::mutate(parent_row = parent_row(parent_id, internode_id))
 
     cyl_summ = setTips(cyl_summ)
 
@@ -352,6 +358,13 @@ calc_vol.TreeStructs <- function(obj) {
     return(obj)
 }
 
+
+#' @export
+calc_sa_above.TreeStructs <- function(obj) {
+    obj$treestructs$cyl_summ = purrr::map(getCylSummary(obj, concat = FALSE), calc_sa_above)
+    return(obj)
+}
+
 #' @title calc_pathlen.TreeStructs
 #' @description calc path lengths
 #' @param obj TreeStructs object
@@ -382,7 +395,7 @@ calc_pathlen.TreeStructs <- function(obj) {
     # mean pathlength to tips of QSM
     obj$treestructs$pathlen_mean = map_dbl(obj$treestructs$treestruct,
                                            .f = function(x) x %>%
-                                               ungroup() %>% # grouping is carrying through from somewhere
+                                               dplyr::ungroup() %>% # grouping is carrying through from somewhere
                                                dplyr::filter(tip) %>%
                                                dplyr::summarize(pathlen_mean = mean(pathlen, na.rm = T)) %>%
                                                dplyr::pull(pathlen_mean))
@@ -499,5 +512,6 @@ run_all.TreeStructs <- function(obj, calc_dbh = T) {
     }
     obj = make_convhull(obj) # convhull won't work on hand measured branches
     obj = run_all.default(obj, calc_dbh)
+    obj = calc_sa_above(obj)
     return(obj)
 }

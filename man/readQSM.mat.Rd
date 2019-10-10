@@ -4,7 +4,7 @@
 \alias{readQSM.mat}
 \title{readQSM.mat}
 \usage{
-readQSM.mat(qsmfile, qsmver = 2.3)
+readQSM.mat(qsmfile, qsmver = "by_name")
 }
 \arguments{
 \item{qsmfile}{path to .mat file}

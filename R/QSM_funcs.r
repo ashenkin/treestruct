@@ -16,7 +16,7 @@
 #' @rdname readQSM.mat
 #'
 #'
-readQSM.mat <- function(qsmfile, qsmver = 2.3) {
+readQSM.mat <- function(qsmfile, qsmver = "by_name") {
     if (!requireNamespace("rmatio", quietly = TRUE)) {
         stop("Package \"rmatio\" needed for this function to work. Please install it.",
              call. = FALSE)
@@ -26,40 +26,57 @@ readQSM.mat <- function(qsmfile, qsmver = 2.3) {
 
     #names(QSMmat[["qsm"]]) = c("cylinder", "branch", "treedata", "rundata", "pmdistance", "triangulation")  # names below 1st level in hierarchy dropped by R.matlab it seems
 
-    cyldata = QSMmat$qsm$cylinder
+    cyldata = QSMmat[["qsm"]]$cylinder
     cyldata = cyldata %>% purrr::map(`[[`, 1) %>% as.data.frame() %>% dplyr::bind_cols()
-    branchdata = QSMmat$qsm$branch
+    branchdata = QSMmat[["qsm"]]$branch
     branchdata = branchdata %>% purrr::map(`[[`, 1) %>% as.data.frame() %>% dplyr::bind_cols()
 
-    # CylData_cols = c("rad", "len", "sta", "axe", "cpar", "cext", "boc", "added", "unmodradius")
-    # BranchData_cols = c("bord", "bpar", "bvol", "blen", "bang")
-    #
-    # cyldata_ele2col_order = order(match(tolower(names(QSMmat)), CylData_cols), na.last = NA)
-    # branchdata_ele2col_order = order(match(tolower(names(QSMmat)), BranchData_cols), na.last = NA)
+    cyl_col_names = c("rad" = "radius",
+                      "len" = "length",
+                      "x_start" = "start.1",
+                      "y_start" = "start.2",
+                      "z_start" = "start.3",
+                      "x_cyl" = "axis.1",
+                      "y_cyl" = "axis.2",
+                      "z_cyl" = "axis.3",
+                      "parent_row" = "parent",
+                      "daughter_row" = "extension",
+                      "added_after" = "added",
+                      "branch_data_row" = "branch",
+                      "branch_order" = "BranchOrder",
+                      "index_num" = "PositionInBranch")
 
-    #cydata_elements = grepl(paste0("^", paste(CylData_cols, collapse="$|^"), "$"), names(QSMmat), ignore.case = T)
-    #branchdata_elements = grepl(paste0("^", paste(BranchData_cols, collapse="$|^"), "$"), names(QSMmat), ignore.case = T)
-
-    # CylData = data.frame(do.call(cbind, QSMmat[ cyldata_ele2col_order ]))
-    # BranchData = data.frame(do.call(cbind, QSMmat[ branchdata_ele2col_order ]))
-
-    #names(CylData) =
+    branch_col_names = c("bord" = "order",
+                         "bpar" = "parent",
+                         "bvol" = "volume",
+                         "blen" = "length",
+                         "bang" = "angle",
+                         "bheight" = "height",
+                         "baz" = "azimuth",
+                         "bdiam" = "diameter")
 
     # reorder and rename columns
 
-
     if (is.numeric(qsmver) & qsmver >= 2.3) {
+        testit::assert("Length of cyl columns not right", length(names(cyldata)) == 15, length(names(branchdata)) == 5)
         names(cyldata) = c("rad","len","x_start","y_start","z_start","x_cyl","y_cyl","z_cyl","parent_row",
                            "daughter_row","branch_data_row","branch_order","index_num","added_after", "rad0")
         names(branchdata) = c("bord", "bpar", "bvol", "blen", "bang")
     } else if (qsmver == "UCL") {
+        testit::assert("Length of cyl columns not right", length(names(cyldata)) == 15, length(names(branchdata)) == 8)
         names(cyldata) = c("rad","len","x_start","y_start","z_start","x_cyl","y_cyl","z_cyl","parent_row",
                            "daughter_row", "added_after", "unmod_rad", "branch_data_row","branch_order","index_num")
         names(branchdata) = c("bord", "bpar", "bvol", "blen", "bang", "bheight", "baz", "bdiam")
-    } else {
+    } else if (is.numeric(qsmver) & qsmver < 2.3) {
+        testit::assert("Length of cyl columns not right", length(names(cyldata)) == 14, length(names(branchdata)) == 5)
         names(cyldata) = c("rad","len","x_start","y_start","z_start","x_cyl","y_cyl","z_cyl","parent_row",
                            "daughter_row","branch_data_row","branch_order","index_num","added_after")
         names(branchdata) = c("bord", "bpar", "bvol", "blen", "bang")
+    } else if (qsmver == "by_name") { # match by name
+        cyldata = cyldata %>% dplyr::rename(!!cyl_col_names)
+        branchdata = branchdata %>% dplyr::rename(!!branch_col_names)
+    } else {
+        stop("must specify a qsm version")
     }
 
     return(list(file = basename(qsmfile), CylData = cyldata, BranchData = branchdata))
@@ -121,7 +138,7 @@ readQSM.mat <- function(qsmfile, qsmver = 2.3) {
 #'
 #' @import purrr
 #' @import tidyr
-import_treestructs_from_dir <- function(qsm_path = ".", recursive = F, qsmver = 2.3, filematch_pattern = ".mat", nest = F) {
+import_treestructs_from_dir <- function(qsm_path = ".", recursive = F, qsmver = "by_name", filematch_pattern = ".mat", nest = F) {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
     qsm_mats = list.files(path = qsm_path,

@@ -409,10 +409,10 @@ reorder_internodes.default <- function(ts) {
     # now reorder ts from last branch to first, and tip downwards within branch
     tscopy = tscopy %>% dplyr::arrange(desc(branchnum), cyl_order_in_branch)
     ts = ts[tscopy$orig_row,]    # use copied dataframe to reorder original (we've added columns to tscopy, etc)
-    # TODO get this working - don't want false parent_row's hanging around.  currently crashing R, don't know why
-    # if ("parent_row" %in% names(ts)) {
-    #     ts$parent_row = match(ts$parent_id, ts$internode_id) # reset parent_row now that we've moved things around.
-    # }
+
+    if ("parent_row" %in% names(ts)) {
+        ts$parent_row = match(ts$parent_id, ts$internode_id) # reset parent_row now that we've moved things around.
+    }
     return(ts)
 }
 
@@ -435,7 +435,7 @@ correct_furcations.default <- function(ts) {
         dplyr::left_join(ts %>% dplyr::select(parent_id), by = c("internode_id" = "parent_id")) %>% # how many rows call you "parent"
             dplyr::add_count(internode_id, name = "n_furcation") %>%
             dplyr::group_by(internode_id) %>%
-            dplyr::filter(row_number() == 1)
+            dplyr::filter(dplyr::row_number() == 1)
     )
 }
 
@@ -592,6 +592,34 @@ calc_surfarea.BranchStructs <- function(obj) {
     obj$treestructs$treestruct = map(obj$treestructs$treestruct, sa_fun)
     obj$treestructs$surface_area_tot = map_dbl(obj$treestructs$treestruct, ~sum(.$surf_area, na.rm = T))
     return(obj)
+}
+
+#' @export
+calc_sa_above <- function(obj) {
+    UseMethod("calc_sa_above", obj)
+}
+
+#' @export
+calc_sa_above.BranchStructs <- function(obj) {
+    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), calc_sa_above)
+    return(obj)
+}
+
+#' @export
+calc_sa_above.default <- function(ts) {
+    if (! "parent_row" %in% names(ts)) {
+        parent_row = parent_row(ts$parent_id, ts$internode_id)
+    } else {
+        parent_row = ts$parent_row
+    }
+    # wrap cpp function above
+    if (! validate_internode_order(parent_row)) {
+        warning(paste("Bad cyl file order in tree ", ts$tree[1]))
+        ts$sa_above = NA
+        return(ts)
+    }
+    ts$sa_above = calc_sa_above_cpp(ts$surf_area, parent_row)
+    return(ts)
 }
 
 #' @export
@@ -825,7 +853,8 @@ run_all <- function(obj, ...) {
 
 #' @export
 run_all.BranchStructs <- function(obj, calc_dbh = F, calc_summ_cyl = F, calc_max_height = F) {
-    run_all.default(obj, calc_dbh, calc_summ_cyl, calc_max_height)
+    obj = run_all.default(obj, calc_dbh, calc_summ_cyl, calc_max_height)
+    obj = calc_sa_above(obj)
 }
 
 #' @export

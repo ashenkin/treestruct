@@ -1,32 +1,25 @@
 #include <Rcpp.h>
 using namespace Rcpp;
-
-// from https://stackoverflow.com/questions/46368188/how-to-efficiently-calculate-path-lengths-in-tree-topology/46369457#46369457
+using namespace std;
 
 // [[Rcpp::export]]
-NumericVector calc_pathlen_cpp(NumericVector len, NumericVector idx){
+NumericVector calc_pathlen_cpp(NumericVector len, NumericVector parent_idx){
     // idx is a pointer to the row of the parent of the current internode
     // idx must be ordered from tip to base
     int n = len.size();
-    NumericVector res(n);
-    double cumsum=0;
-    int j;
-    res[0] = len[0];
+    NumericVector pathlen;
+    pathlen = clone(len);
 
-    for(int i = 1; i < n; i++){
-        j = idx[ i ] - 1;
-        cumsum = res[ j ] + len[ i ];
-        res[ i ] = cumsum;
+    for(int currrow = n - 1; currrow >= 0; currrow--){
+        if (!R_IsNA(parent_idx[ currrow ])) {
+            pathlen[ currrow ] += pathlen[ parent_idx[ currrow ] - 1 ]; // minus one since c is zero-indexed
+        }
     }
-    return res;
+
+    return pathlen;
 }
 
 
-// You can include R code blocks in C++ files processed with sourceCpp
-// (useful for testing and development). The R code will be automatically
-// run after the compilation.
-//
-
 /*** R
-calc_pathlen_cpp(runif(100), c(1:100))
+calc_pathlen_cpp(1:10, c(2:10,NA))
 */
