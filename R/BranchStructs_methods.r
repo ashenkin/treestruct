@@ -209,7 +209,7 @@ getTips.BranchStructs <- function(obj, make_compatible = T) {
 }
 
 #' @export
-setGraph <- function(obj) {
+setGraph <- function(obj, ...) {
     UseMethod("setGraph", obj)
 }
 
@@ -228,7 +228,7 @@ setGraph <- function(obj) {
 #' @export
 #' @rdname setGraph.BranchStructs
 #'
-setGraph.BranchStructs <- function(obj) {
+setGraph.BranchStructs <- function(obj, ts_accessor = getTreestruct) {
 
     make_tidygraph <- function(ts) {
         thisedgelist = ts %>% dplyr::mutate( from = !!rlang::sym(obj$parentid_col),
@@ -243,7 +243,7 @@ setGraph.BranchStructs <- function(obj) {
         return(tidygraph::as_tbl_graph(this_igraph))
     }
 
-    obj$treestructs$graph = map(obj$treestructs$treestruct, make_tidygraph)
+    obj$treestructs$graph = map(ts_accessor(obj, concat = F), make_tidygraph)
     obj = setNumComponents(obj)
 
     return(obj)

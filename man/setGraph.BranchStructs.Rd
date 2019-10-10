@@ -4,7 +4,7 @@
 \alias{setGraph.BranchStructs}
 \title{setGraph.BranchStructs}
 \usage{
-\method{setGraph}{BranchStructs}(obj)
+\method{setGraph}{BranchStructs}(obj, ts_accessor = getTreestruct)
 }
 \arguments{
 \item{obj}{BranchStructs object}

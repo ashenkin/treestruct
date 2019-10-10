@@ -76,6 +76,27 @@ getCylSummary.TreeStructs <- function(obj, idx = NA, concat = T) {
     }
 }
 
+#' @title setGraph.TreeStructs
+#' @description FUNCTION_DESCRIPTION
+#' @param obj TreeStructs object
+#' @return OUTPUT_DESCRIPTION
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname setGraph.TreeStructs
+#'
+setGraph.TreeStructs <- function(obj) {
+
+    obj = setGraph.BranchStructs(obj, ts_accessor = getCylSummary)
+
+    return(obj)
+}
+
 # Validators ####
 
 #' @import crayon
@@ -514,4 +535,55 @@ run_all.TreeStructs <- function(obj, calc_dbh = T) {
     obj = run_all.default(obj, calc_dbh)
     obj = calc_sa_above(obj)
     return(obj)
+}
+
+# Visualization ####
+
+#' @title visNetwork.TreeStructs
+#' @description visualize tree network.  This overwrites visNetwork for TreeStructs objects.
+#' @param bss TreeStructs object (requred)
+#' @param index \code{character} or \code{integer} char matching TreeStructs id column, or index of branch in TreeStructs object (required)
+#' @param hierarchical \code{logical}, plot in hierarchical layout. Default: T
+#' @param width_factor \code{numeric} edge width factor, Default: 100
+#' @param length_factor \code{numeric} edge length factor, Default: 10
+#' @return visNetwork object
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  visNetwork(bss_obj) %>% visEdges(arrows = "middle")
+#'  }
+#' }
+#' @export
+#' @rdname visNetwork.TreeStructs
+#' @seealso
+#'  \code{\link[visNetwork]{visNetwork-igraph}},\code{\link[visNetwork]{visNetwork}}
+visNetwork.TreeStructs <- function(ts, index, hierarchical = T, width_factor = 100, length_factor = 10) {
+
+    if (is.character(index)) {
+        index = enquo(index)
+        this_tidygraph = ts$treestructs %>%
+            dplyr::filter(!!sym(ts$idcol) := !!index) %>%
+            dplyr::pull(graph)
+        this_id = ts$treestructs %>%
+            dplyr::filter(!!sym(ts$idcol) := !!index) %>%
+            dplyr::pull(!!sym(ts$idcol))
+    } else if (is.numeric(index)) {
+        # index is lookup number
+        this_tidygraph = ts$treestructs[index,]$graph[[1]]
+        this_id = ts$treestructs[index,ts$idcol][[1]]
+    }
+    netdata = visNetwork::toVisNetworkData(this_tidygraph)
+    netdata$edges = netdata$edges %>% dplyr::mutate(width = rad * 2 * width_factor, length = len * length_factor)
+    ret =
+        visNetwork::visNetwork(netdata$nodes, netdata$edges, layout = "layout_with_fr", main = this_id) %>%
+        visNetwork::visNodes(font = list(size = 25) ,
+                             scaling = list(label = list(
+                                 enabled = TRUE,
+                                 min = 25, max = 100,
+                                 maxVisible = 100,
+                                 drawThreshold = 1
+                             )))
+    if (hierarchical) ret = ret %>% visNetwork::visHierarchicalLayout()
+    return(ret)
 }
