@@ -44,6 +44,11 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) 
                       d_parent = !!rlang::sym(obj$radius_col)*2, # to make compliant with branchstructs.  TODO remove once treestructs no longer inherits from branchstructs
                       d_child = d_parent) %>%
         tidyr::nest(.key = "treestruct")
+
+
+    # reorder internodes - necessary for many operations
+    newobj = reorder_internodes(newobj)
+
     # validate treestructs
     if (!getOption("skip_validation", default = FALSE)) {
         valid_treestruct = validate_treestruct(newobj)
@@ -57,6 +62,7 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) 
         warning("validation turned off, returning unvalidated TreeStructs")
         return(newobj)
     }
+
 
 }
 
@@ -527,12 +533,12 @@ length_scaling.TreeStructs <- function(obj) {
 }
 
 #' @export
-run_all.TreeStructs <- function(obj, calc_dbh = T) {
+run_all.TreeStructs <- function(obj, calc_dbh = T, ...) {
     if (obj$trees_not_branches) {
         obj = assign_cyls_to_crown(obj) # only assign crown columns for whole trees, not hand-measured branches
     }
     obj = make_convhull(obj) # convhull won't work on hand measured branches
-    obj = run_all.default(obj, calc_dbh)
+    obj = run_all.default(obj, calc_dbh, ...)
     obj = calc_sa_above(obj)
     return(obj)
 }

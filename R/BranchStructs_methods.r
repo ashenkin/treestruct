@@ -845,6 +845,24 @@ length_scaling.default <- function(ts) {
     return(ts)
 }
 
+#' @export
+calc_per_rad_class_metrics <- function(obj) {
+    UseMethod("calc_per_rad_class_metrics", obj)
+}
+
+#' @export
+calc_per_rad_class_metrics.Branchstructs <- function(obj, metrics = c("surf_area", "vol", "len")) {
+    obj$treestructs$per_diam_metrics = purrr::map(getTreestruct(obj, concat = F), calc_per_rad_class_metrics.default, metrics)
+    return(obj)
+}
+
+#' @export
+calc_per_rad_class_metrics.default <- function(ts, metrics = c("surf_area", "vol", "len")) {
+    ts %>%
+        dplyr::group_by(cut(rad, breaks = seq(0, ceiling(max(rad)*2*100)/200, by = 0.005)),
+                            labels = seq(0, ceiling(max(rad)*2*100-1)/200, by = 0.005)) %>%
+        dplyr::summarize_at(.vars = metrics, .fun = ~ sum(., na.rm = T))
+}
 
 #' @export
 run_all <- function(obj, ...) {
@@ -852,13 +870,13 @@ run_all <- function(obj, ...) {
 }
 
 #' @export
-run_all.BranchStructs <- function(obj, calc_dbh = F, calc_summ_cyl = F, calc_max_height = F) {
-    obj = run_all.default(obj, calc_dbh, calc_summ_cyl, calc_max_height)
+run_all.BranchStructs <- function(obj, calc_dbh = F, calc_summ_cyl = F, calc_max_height = F, make_graph_obj = T) {
+    obj = run_all.default(obj, calc_dbh, calc_summ_cyl, calc_max_height, make_graph_obj)
     obj = calc_sa_above(obj)
 }
 
 #' @export
-run_all.default <- function(obj, calc_dbh = T, calc_summ_cyl = T, calc_max_height = T) {
+run_all.default <- function(obj, calc_dbh = T, calc_summ_cyl = T, calc_max_height = T, make_graph_obj = T) {
     # if (! check_property(obj, "tips_set")) obj = setTips(obj)
     obj = setTips(obj) # always set tips for now...  not necessary if reading from source...
     obj = calc_surfarea(obj)
@@ -871,6 +889,7 @@ run_all.default <- function(obj, calc_dbh = T, calc_summ_cyl = T, calc_max_heigh
     if (calc_summ_cyl) obj = calc_summary_cyls(obj)
     obj = radius_scaling(obj)
     obj = length_scaling(obj)
+    if (make_graph_obj) obj = setGraph(obj)
     return(obj)
 }
 
