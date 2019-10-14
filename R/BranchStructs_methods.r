@@ -851,17 +851,19 @@ calc_per_rad_class_metrics <- function(obj) {
 }
 
 #' @export
-calc_per_rad_class_metrics.Branchstructs <- function(obj, metrics = c("surf_area", "vol", "len")) {
-    obj$treestructs$per_diam_metrics = purrr::map(getTreestruct(obj, concat = F), calc_per_rad_class_metrics.default, metrics)
+calc_per_rad_class_metrics.BranchStructs <- function(obj, metrics = c("surf_area", "vol", "len")) {
+    obj$treestructs$per_rad_metrics = purrr::map(getTreestruct(obj, concat = F), calc_per_rad_class_metrics.default, metrics)
     return(obj)
 }
 
 #' @export
 calc_per_rad_class_metrics.default <- function(ts, metrics = c("surf_area", "vol", "len")) {
-    ts %>%
-        dplyr::group_by(cut(rad, breaks = seq(0, ceiling(max(rad)*2*100)/200, by = 0.005)),
-                            labels = seq(0, ceiling(max(rad)*2*100-1)/200, by = 0.005)) %>%
-        dplyr::summarize_at(.vars = metrics, .fun = ~ sum(., na.rm = T))
+    return(
+        ts %>%
+            dplyr::group_by(rad_class = as.numeric(cut(rad, breaks = seq(0, ceiling(max(rad)*2*100)/200, by = 0.005),
+                                            labels = head(seq(0, ceiling(max(rad)*2*100)/200, by = 0.005), -1)))) %>%
+            dplyr::summarize_at(.vars = metrics, .fun = ~ sum(., na.rm = T))
+    )
 }
 
 #' @export
@@ -889,6 +891,7 @@ run_all.default <- function(obj, calc_dbh = T, calc_summ_cyl = T, calc_max_heigh
     if (calc_summ_cyl) obj = calc_summary_cyls(obj)
     obj = radius_scaling(obj)
     obj = length_scaling(obj)
+    obj = calc_per_rad_class_metrics(obj)
     if (make_graph_obj) obj = setGraph(obj)
     return(obj)
 }
