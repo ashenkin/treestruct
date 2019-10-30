@@ -267,6 +267,23 @@ setNumComponents.default <- function(obj) {
 }
 
 #' @export
+getPerRadMetrics <- function(obj, ...) {
+    UseMethod("getPerRadMetrics", obj)
+}
+
+#' @export
+getPerRadMetrics.BranchStructs <- function(obj, idx = NA, concat = T) {
+    if (! is.na(idx))
+        return(getTreestructs(obj)$per_rad_metrics[[idx]])
+    else if (concat) {
+        # don't return other list columns
+        return(obj$treestructs %>% tidyr::unnest(per_rad_metrics) %>% dplyr::select(-list_cols(., return_names = F)))
+    } else {
+        return(getTreestructs(obj)$per_rad_metrics)
+    }
+}
+
+#' @export
 getSummary <- function(obj) {
     UseMethod("getSummary", obj)
 }
@@ -858,12 +875,24 @@ calc_per_rad_class_metrics.BranchStructs <- function(obj, metrics = c("surf_area
 
 #' @export
 calc_per_rad_class_metrics.default <- function(ts, metrics = c("surf_area", "vol", "len")) {
-    return(
+    perclass =
         ts %>%
-            dplyr::group_by(rad_class = as.numeric(cut(rad, breaks = seq(0, ceiling(max(rad)*2*100)/200, by = 0.005),
-                                            labels = head(seq(0, ceiling(max(rad)*2*100)/200, by = 0.005), -1)))) %>%
-            dplyr::summarize_at(.vars = metrics, .fun = ~ sum(., na.rm = T))
-    )
+        dplyr::group_by(rad_class = as.numeric(as.character(cut(rad, breaks = seq(0, ceiling(max(rad)*2*100)/200, by = 0.005),
+                                                   labels = head(seq(0, ceiling(max(rad)*2*100)/200, by = 0.005), -1))))) %>%
+        dplyr::summarize_at(.vars = metrics, ~ sum(., na.rm = T))
+
+    # fill classes with 0 if there arent any branches in the smallest classes
+    # hence guaranteed to have classes popluated down to zero
+    minrad = min(perclass$rad_class)
+    if (minrad > 0) {
+        nrow = as.integer(minrad / 0.005)
+        fillrows = data.frame(matrix(data = 0, nrow = nrow, ncol = length(metrics) + 1))
+        names(fillrows) = c("rad_class", metrics)
+        fillrows$rad_class = seq(minrad - 0.005, 0, -0.005)
+        perclass = rbind(perclass, fillrows)
+    }
+
+    return(perclass)
 }
 
 #' @export
