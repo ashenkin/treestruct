@@ -167,13 +167,17 @@ getTreestruct.default <- function(obj) {
 }
 
 #' @export
-getTreestructs <- function(obj) {
+getTreestructs <- function(obj, ...) {
     UseMethod("getTreestructs", obj)
 }
 
 #' @export
-getTreestructs.BranchStructs <- function(obj) {
-    return(obj$treestructs)
+getTreestructs.BranchStructs <- function(obj, list_cols = T) {
+    if (list_cols) {
+        return(obj$treestructs)
+    } else {
+        return(obj$treestructs[-list_cols(obj$treestructs, return_names = F)])
+    }
 }
 
 #' @export
