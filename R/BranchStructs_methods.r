@@ -80,7 +80,7 @@ setTreestruct <- function(obj, treestruct) {
 #' @export
 #' @rdname setTreestruct.BranchStructs
 #'
-setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T) {
+setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T, abort_when_invalid = F) {
     # TODO this should really be renamed importTreestruct.  setTreestruct should be a simple assignment method I think...
     newobj = obj
 
@@ -90,8 +90,10 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T)
 
     # set NA ignore errors to F
     # TODO make ignore_error dynamic based on obj$ignore_error_col value
-    treestructs = treestructs %>% tidyr::replace_na(setNames(list(F),obj$ignore_error_col)) %>%
-                  dplyr::mutate(ignore_error := as.logical(ignore_error))  # make sure we end up with a logical column
+    treestructs = treestructs %>%
+        tidyr::replace_na(setNames(list(F),obj$ignore_error_col)) %>%
+        ungroup() %>% # grouped variables from previous operations were giving errors here for some reason...
+        dplyr::mutate(ignore_error := as.logical(ignore_error))  # make sure we end up with a logical column
 
     # convert units to meters
     if (convert_to_meters) treestructs = treestructs %>%
@@ -108,15 +110,25 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T)
         dplyr::group_by_(newobj$idcol) %>%
         tidyr::nest(.key = "treestruct")
 
+    # reorder internodes - necessary for many operations
+    newobj = reorder_internodes(newobj)
+
     # validate treestructs
     if (!getOption("skip_validation", default = FALSE)) {
-        valid_treestruct = validate_treestruct(newobj)
-        if (valid_treestruct) {
+        validation = validate_treestruct(newobj)
+        valid_treestruct = validation[["all_valid"]]
+        newobj = validation[["branchstructs"]]
+
+        if (valid_treestruct | !abort_when_invalid) {
+
+            if (!valid_treestruct)
+                warning(paste("treestructs not valid, continuing with validation:", newobj$id))
 
             newobj = setGraph(newobj)
             valid_graph = validate_connectivity(newobj)
-            if (!valid_graph) warning("Multiple components in one or more treestructs")
+            if (!valid_graph) warning(crayon::red("Multiple components in one or more treestructs"))
             return(newobj)
+
         } else {
             warning(paste("treestructs not valid,
                            returning unmodified BranchStructs object ID ", obj$id))
@@ -222,7 +234,10 @@ setGraph <- function(obj, ...) {
 #' @description FUNCTION_DESCRIPTION
 #' @param obj BranchStructs object
 #' @return OUTPUT_DESCRIPTION
-#' @details DETAILS
+#' @details Invalid treestructs will have graph set to NA.  This means that all functions making use of graphs will have to
+#' be able to handle NA as an input in addition to a graph object.  This is a design decision.  An alternative is to use an empty graph object, but then
+#' it becomes less obvious which treestructs are invalid and hence don't have graphs, and could lead to including erroneous
+#' data in analyses.
 #' @examples
 #' \dontrun{
 #' if(interactive()){
@@ -234,7 +249,8 @@ setGraph <- function(obj, ...) {
 #'
 setGraph.BranchStructs <- function(obj, ts_accessor = getTreestruct) {
 
-    make_tidygraph <- function(ts) {
+    make_tidygraph <- function(ts, valid = T) {
+        if (! valid) return(NA)
         thisedgelist = ts %>% dplyr::mutate( from = !!rlang::sym(obj$parentid_col),
                                              to = !!rlang::sym(obj$internodeid_col) ) %>%
             dplyr::select(from, to, everything())
@@ -247,7 +263,16 @@ setGraph.BranchStructs <- function(obj, ts_accessor = getTreestruct) {
         return(tidygraph::as_tbl_graph(this_igraph))
     }
 
-    obj$treestructs$graph = map(ts_accessor(obj, concat = F), make_tidygraph)
+    # do not construct graphs for treestructs that are invalid
+    obj$treestructs = obj$treestructs %>%
+            rowwise() %>%
+            mutate(valid = all(c_across(contains("valid")), na.rm = T))
+            # mutate(graph = ifelse(valid, make_tidygraph(treestruct), NA)) #make_tidygraph(treestruct), NA))
+
+    # set invalid treestruct graphs to NA
+    obj$treestructs$graph = as.list(rep(NA, nrow(obj$treestructs)))
+    obj$treestructs[obj$treestructs$valid,]$graph = map(ts_accessor(obj, concat = F)[obj$treestructs$valid], make_tidygraph)
+    #obj$treestructs$graph = map(ts_accessor(obj, concat = F), make_tidygraph,  obj$treestructs$valid)
     obj = setNumComponents(obj)
 
     return(obj)
@@ -260,7 +285,12 @@ setNumComponents <- function(obj) {
 
 #' @export
 setNumComponents.BranchStructs <- function(bss) {
-    bss$treestructs$num_components = purrr::map_dbl(bss$treestructs$graph, igraph::count_components)
+    # num_components = NA if graph = NA.  Otherwise, count components.
+    bss$treestructs$num_components = rep(NA_real_, nrow(bss$treestructs))
+
+    bss$treestructs[!is.na(bss$treestructs$graph),]$num_components =
+        purrr::map_dbl(bss$treestructs$graph[!is.na(bss$treestructs$graph)], igraph::count_components)
+
     return(bss)
 }
 
@@ -323,25 +353,43 @@ validate_treestruct <- function(obj) {
     UseMethod("validate_treestruct", obj)
 }
 
+#' @import crayon
 validate_treestruct.BranchStructs <- function(obj) {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
-    valid = T
+
+    # set validation flag columns
+    obj$treestructs$valid_parents = NA
+    obj$treestructs$valid_df = NA
+    obj$treestructs$valid_internodes = NA
+
+    all_valid = T
     treestructs = obj$treestructs
     for (this_row in 1:nrow(treestructs)) { # loop over all treestruct dfs in object
-        thisbranch = treestructs[[this_row, obj$idcol]]
-        this_treestruct = treestructs[[this_row, "treestruct"]]
-        if (verbose) message(paste("Validating branch",thisbranch))
-        valid = valid & validate_parents(this_treestruct[[obj$internodeid_col]], this_treestruct[[obj$parentid_col]],
-                                         ignore_errors = this_treestruct[[obj$ignore_error_col]])
-        valid = valid & is.data.frame(this_treestruct)
-            if (!is.data.frame(this_treestruct)) warning("Treestruct not a dataframe error")
 
-        valid = valid & validate_internodes(this_treestruct, obj$internodeid_col,
+        thisbranch = treestructs[[this_row, obj$idcol]]
+        this_treestruct = treestructs[[this_row, "treestruct"]][[1]]  # this is a list for hand-measured branches, so must add [[1]].
+        if (verbose) message(paste("Validating branch",thisbranch))
+
+        parents_valid = validate_parents(this_treestruct[[obj$internodeid_col]], this_treestruct[[obj$parentid_col]],
+                                         ignore_errors = this_treestruct[[obj$ignore_error_col]])
+        obj$treestructs[this_row,]$valid_parents = parents_valid
+        if (!parents_valid) warning(crayon::red(paste("Parents NOT valid:",thisbranch)))
+
+        df_valid = is.data.frame(this_treestruct)
+        obj$treestructs[this_row,]$valid_df = df_valid
+        if (!df_valid) warning(crayon::red(paste("treestruct not a dataframe:",thisbranch)))
+
+        internodes_valid = validate_internodes(this_treestruct, obj$internodeid_col,
                                             ignore_error_col = obj$ignore_error_col)
+        obj$treestructs[this_row,]$valid_internodes = internodes_valid
+        if (!internodes_valid) warning(crayon::red(paste("Internodes NOT valid:",thisbranch)))
+
+        this_valid = parents_valid & df_valid & internodes_valid
+        all_valid = all_valid & this_valid
     }
     # assume columns are all there.  TODO validate column names.
-    return(valid)
+    return(list(all_valid = all_valid, branchstructs = obj))
 }
 
 validate_treestruct.default <- function(...) {
@@ -406,9 +454,9 @@ reorder_internodes.default <- function(ts) {
     tscopy$orig_row = 1:nrow(ts)
     tscopy$parent_row = match(tscopy$parent_id, tscopy$internode_id)
     # which branch does this cylinder belong to
-    tscopy$branchnum = NA
+    tscopy$branchnum = NA_integer_
     # the sequence order of the cylinders within the branch
-    tscopy$cyl_order_in_branch = NA
+    tscopy$cyl_order_in_branch = NA_integer_
     # initiate branches from tip downwards
     tscopy[tscopy$tip,]$branchnum = 1:ntips
     tscopy[tscopy$tip,]$cyl_order_in_branch = 1
@@ -699,7 +747,7 @@ calc_pathlen.BranchStructs <- function(bss) {
         parent_row = match(treestruct$parent_id, treestruct$internode_id)
         treestruct = treestruct %>% dplyr::mutate(len_tot = sum(len, na.rm = T))
         if (validate_internode_order(treestruct[[bss$parentid_col]], treestruct[[bss$internodeid_col]], parents_are_rows = F) &
-            treestructs$num_components == 1) {
+            treestructs$num_components %in% 1) { # %in% instead of = since num_components is sometimes NA - in that case, don't calc pathlen
             # calc pathlength along entire network for each node
             if (treestructs$branch_code == "SAF05-T8-B1S") { browser() }
             treestruct = treestruct %>%
@@ -730,8 +778,10 @@ calc_pathlen.BranchStructs <- function(bss) {
     # bss$treestructs = bss$treestructs %>% rowwise() %>% do(pathlen_vec(.)) %>% bind_rows()
     # bss$treestructs = bss$treestructs %>% purrrlyr::by_row(pathlen_vec, .labels = F, .collate = c("cols")) # this messes with the column names
     bss$treestructs = bss$treestructs %>%
+        dplyr::ungroup() %>%
         dplyr::mutate(tempcol = 1:dplyr::n()) %>%
         dplyr::group_by(tempcol) %>%
+        #dplyr::rowwise() %>%
         dplyr::do(pathlen_vec(.)) %>%
         dplyr::bind_rows() %>%
         dplyr::ungroup() %>%
@@ -879,15 +929,17 @@ calc_per_rad_class_metrics.BranchStructs <- function(obj, metrics = c("surf_area
 
 #' @export
 calc_per_rad_class_metrics.default <- function(ts, metrics = c("surf_area", "vol", "len")) {
+
     perclass =
         ts %>%
-        dplyr::group_by(rad_class = as.numeric(as.character(cut(rad, breaks = seq(0, ceiling(max(rad)*2*100)/200, by = 0.005),
-                                                   labels = head(seq(0, ceiling(max(rad)*2*100)/200, by = 0.005), -1))))) %>%
+        ungroup() %>%
+        dplyr::group_by(rad_class = as.numeric(as.character(cut(rad, breaks = seq(0, ceiling(max(rad, na.rm = T)*2*100)/200, by = 0.005),
+                                                   labels = head(seq(0, ceiling(max(rad, na.rm = T)*2*100)/200, by = 0.005), -1))))) %>%
         dplyr::summarize_at(.vars = metrics, ~ sum(., na.rm = T))
 
-    # fill classes with 0 if there arent any branches in the smallest classes
+    # fill classes with 0 if there aren't any branches in the smallest classes
     # hence guaranteed to have classes popluated down to zero
-    minrad = min(perclass$rad_class)
+    minrad = min(perclass$rad_class, na.rm = T)
     if (minrad > 0) {
         nrow = as.integer(minrad / 0.005)
         fillrows = data.frame(matrix(data = 0, nrow = nrow, ncol = length(metrics) + 1))

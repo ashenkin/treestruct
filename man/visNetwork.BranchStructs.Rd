@@ -4,8 +4,13 @@
 \alias{visNetwork.BranchStructs}
 \title{visNetwork.BranchStructs}
 \usage{
-\method{visNetwork}{BranchStructs}(bss, index, hierarchical = T,
-  width_factor = 1000, length_factor = 10)
+\method{visNetwork}{BranchStructs}(
+  bss,
+  index,
+  hierarchical = T,
+  width_factor = 1000,
+  length_factor = 10
+)
 }
 \arguments{
 \item{bss}{BranchStructs object (requred)}

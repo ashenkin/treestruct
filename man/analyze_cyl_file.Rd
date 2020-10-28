@@ -4,9 +4,14 @@
 \alias{analyze_cyl_file}
 \title{analyze_cyl_file}
 \usage{
-analyze_cyl_file(cyl_file, calc_sapwood = T, sapwood_depth = 2, treeid,
-  size_classes = c(0, 1, 3, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
-  110, 120, 130, 140))
+analyze_cyl_file(
+  cyl_file,
+  calc_sapwood = T,
+  sapwood_depth = 2,
+  treeid,
+  size_classes = c(0, 1, 3, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130,
+    140)
+)
 }
 \arguments{
 \item{cyl_file}{path to file with the cylinder data}

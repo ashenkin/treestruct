@@ -5,8 +5,7 @@
 \alias{assign_cyls_to_crown.default}
 \title{assign_cyls_to_crown.TreeStructs}
 \usage{
-\method{assign_cyls_to_crown}{TreeStructs}(obj,
-  daughter_threshold = 0.25)
+\method{assign_cyls_to_crown}{TreeStructs}(obj, daughter_threshold = 0.25)
 
 \method{assign_cyls_to_crown}{default}(ts, first_branch_id)
 }

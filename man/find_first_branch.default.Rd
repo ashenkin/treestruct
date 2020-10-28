@@ -16,9 +16,6 @@
 branches must attain for a furction to be counted as the first branch, Default: 0.25}
 
 \item{ts}{treestruct dataframe}
-
-\item{daughter_threshold}{Proportion of the radius of the parent branch that daughter
-branches must attain for a furction to be counted as the first branch, Default: 0.25}
 }
 \value{
 internode_id of parent branch where first furcation occurs

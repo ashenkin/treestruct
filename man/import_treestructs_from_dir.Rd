@@ -4,17 +4,25 @@
 \alias{import_treestructs_from_dir}
 \title{import_treestructs_from_dir}
 \usage{
-import_treestructs_from_dir(qsm_path = ".", recursive = F,
-  qsmver = "by_name", filematch_pattern = ".mat", nest = F)
+import_treestructs_from_dir(
+  qsm_path = ".",
+  recursive = F,
+  qsmver = "by_name",
+  qsmtype = c("by_ext", "QSMtree", "treegraph"),
+  filematch_pattern = "(\\\\.mat)|(\\\\.json)",
+  nest = F
+)
 }
 \arguments{
 \item{qsm_path}{PARAM_DESCRIPTION, Default: '.'}
 
 \item{recursive}{PARAM_DESCRIPTION, Default: F}
 
-\item{qsmver}{PARAM_DESCRIPTION, Default: 2.3}
+\item{qsmver}{PARAM_DESCRIPTION, Default: "by_name"}
 
-\item{filematch_pattern}{regex filematch pattern (used in list.files), Default: ".mat"}
+\item{qsmtype}{program used to create QSM - currently either QSMtree (.mat) or treegraph (.json). Default: "by_ext" (i.e., .mat = QSMtree, .json = treegraph)}
+
+\item{filematch_pattern}{regex filematch pattern (used in list.files), Default: "(\\.mat)|(\\.json)"}
 
 \item{nest}{nest cylinder dataframes in a column, Default: FALSE}
 }

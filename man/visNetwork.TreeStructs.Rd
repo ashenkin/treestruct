@@ -4,8 +4,7 @@
 \alias{visNetwork.TreeStructs}
 \title{visNetwork.TreeStructs}
 \usage{
-\method{visNetwork}{TreeStructs}(ts, index, hierarchical = T,
-  width_factor = 100, length_factor = 10)
+\method{visNetwork}{TreeStructs}(ts, index, hierarchical = T, width_factor = 100, length_factor = 10)
 }
 \arguments{
 \item{index}{\code{character} or \code{integer} char matching TreeStructs id column, or index of branch in TreeStructs object (required)}

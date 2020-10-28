@@ -1,4 +1,35 @@
-# functions for interacting with matlab QSM objects
+# functions for interacting with QSM objects
+
+#' @title readQSM
+#' @description reads in a QSM file by dispatching to readQSM.mat or readQSM.treegraph
+#' @param qsmfile path to file
+#' @param qsmtype program used to create QSM - currently either QSMtree (.mat) or treegraph (.json). Default: "by_ext" (i.e., .mat = QSMtree, .json = treegraph)
+#' @param qsmver version of treeQSM used to make the .mat file, Default: "by_name"
+#' @return a 3-element list of file (filename), CylData, and BranchData
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname readQSM
+#'
+#'
+
+readQSM <- function(qsmfile, qsmtype = c("by_ext", "QSMtree", "treegraph"), qsmver = "by_name") {
+    qsmtype = match.arg(qsmtype)
+    if (qsmtype == "by_ext") {
+        require("tools")
+        file_ext = tools::file_ext(qsmfile)
+        if (file_ext == "mat") qsmtype = "QSMtree"
+        else if (file_ext == "json") qsmtype = "treegraph"
+        else stop(paste ("file extension", file_ext, "not recognized."))
+    }
+    if (qsmtype == "QSMtree") return(readQSM.mat(qsmfile, qsmver))
+    if (qsmtype == "treegraph") return(readQSM.treegraph(qsmfile, qsmver))
+}
 
 #' @title readQSM.mat
 #' @description reads in a QSM file in matlab format and passes back cylinder and branch data
@@ -82,6 +113,130 @@ readQSM.mat <- function(qsmfile, qsmver = "by_name") {
     return(list(file = basename(qsmfile), CylData = cyldata, BranchData = branchdata))
 }
 
+
+#' @title readQSM.treegraph
+#' @description reads in a QSM file in treegraph format and passes back cylinder and branch data
+#' @param qsmfile path to treegraph file
+#' @param qsmver version of treegraph used to make the treegraph file, Default: by_name
+#' @return a 3-element list of file (filename), CylData, and BranchData
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname readQSM.treegraph
+#'
+#'
+readQSM.treegraph <- function(qsmfile, qsmver = "by_name") {
+    if (!requireNamespace("jsonlite", quietly = TRUE)) {
+        stop("Package \"jsonlite\" needed for this function to work. Please install it.",
+             call. = FALSE)
+    }
+    QSMgraph = jsonlite::fromJSON(qsmfile)
+    # treegraph metadata:
+        # cylinder data is in the "cyls" key
+            # all units in meters
+            # within cyls:
+            #     p1 - end node number (same as internode number)
+            # p2 - start node number (same as parent internode number)
+            # sx/sy/sz - center of circular endcap at the beginning of the cylinder
+            # ax/ay/az - unit vector of orientation of cylinder
+            # radius
+            # length
+            # vol
+            # surface_area
+            # point_density
+            # nbranch - number of branch this cyl has been assigned to
+            # ninternode
+            # ncyl
+            # is_tip - logical, if cylinder is a tip
+            # branch_order
+            # is_tipI - integer (1/0), if cylinder is a tip
+
+        # branch data is in the "centres" key
+            # "index"
+            # "centre_id"
+            # "cx"
+            # "cy"
+            # "cz"
+            # "dist2fur"
+            # "distance_from_base"
+            # "is_tip"
+            # "n_furcation"
+            # "n_points"
+            # "nbranch"
+            # "ncyl"
+            # "ninternode"
+            # "node_id"
+            # "parent"
+            # "parent_node"
+            # "slice_id"
+            # "sf_radius"
+            # "sf_error"
+            # "m_radius"
+
+    unpack_json_cyl = function(x) {
+        x[sapply(x, is.null)] <- NA  # NULL entries get dropped by unlist.  We don't want this.
+        return( as.data.frame( unlist( unlist(x))))
+    }
+
+    cyldata = jsonlite::fromJSON(txt = QSMgraph$cyls)
+    df_names = names(cyldata)
+    cyldata = suppressMessages(purrr::map_dfc(cyldata, unpack_json_cyl))
+    names(cyldata) = df_names
+
+    branchdata = jsonlite::fromJSON(txt = QSMgraph$centres)
+    df_names = names(branchdata)
+    branchdata = suppressMessages(purrr::map_dfc(branchdata, unpack_json_cyl))
+    names(branchdata) = df_names
+
+    cyl_col_names = c("rad" = "radius",
+                      "len" = "length",
+                      "x_start" = "sx",
+                      "y_start" = "sy",
+                      "z_start" = "sz",
+                      "x_cyl" = "ax",
+                      "y_cyl" = "ay",
+                      "z_cyl" = "az",
+                      "parent_id" = "p2",
+                      "internode_id" = "p1",
+                      # this will be different from QSM in that it ID's the parent id, not the parent row.
+                      #"parent_row" = "parent",
+                      #"daughter_row" = "extension",
+                      # "added_after" = NA,
+                      "branch_data_row" = "nbranch", #??
+                      "branch_order" = "branch_order",
+                      "index_num" = "ncyl")
+
+    # so many differences from QSM, not worth importing
+    # branch_col_names = c("bord" = NA, # in cyl data
+    #                      "bpar" = "parent",
+    #                      "bvol" = NA, # in cyl data
+    #                      "blen" = NA, # in cyl data
+    #                      "bang" = "angle",
+    #                      "bheight" = "height",
+    #                      "baz" = "azimuth",
+    #                      "bdiam" = "diameter")
+
+    # reorder and rename columns
+
+    if (qsmver == "by_name") { # match by name
+        cyldata = cyldata %>%
+            dplyr::rename(!!cyl_col_names) %>%
+            dplyr::select(names(cyl_col_names)) # only keep columns that match what we need
+        # branchdata = branchdata %>% dplyr::rename(!!branch_col_names)
+    } else {
+        stop("must specify a qsm version")
+    }
+
+    cyldata$parent_row = treestruct::parent_row(cyldata$parent_id, cyldata$internode_id) # set parent row if needed in other treestruct functions
+
+    return(list(file = basename(qsmfile), CylData = cyldata, BranchData = NA))
+}
+
 # OLD VERSION - keeping here for now for easy reference.  not sure how this ever worked... strange mat files?
 # readQSM.mat <- function(qsmfile, qsmver = 2.3) {
 #     if (!requireNamespace("R.matlab", quietly = TRUE)) {
@@ -122,8 +277,9 @@ readQSM.mat <- function(qsmfile, qsmver = "by_name") {
 #' @description utility function to create treestruct dataframe that can be used to create a TreeStructs object
 #' @param qsm_path PARAM_DESCRIPTION, Default: '.'
 #' @param recursive PARAM_DESCRIPTION, Default: F
-#' @param qsmver PARAM_DESCRIPTION, Default: 2.3
-#' @param filematch_pattern regex filematch pattern (used in list.files), Default: ".mat"
+#' @param qsmver PARAM_DESCRIPTION, Default: "by_name"
+#' @param qsmtype program used to create QSM - currently either QSMtree (.mat) or treegraph (.json). Default: "by_ext" (i.e., .mat = QSMtree, .json = treegraph)
+#' @param filematch_pattern regex filematch pattern (used in list.files), Default: "(\\.mat)|(\\.json)"
 #' @param nest nest cylinder dataframes in a column, Default: FALSE
 #' @return OUTPUT_DESCRIPTION
 #' @details this function extracts the CylData elements of all the "*.mat" files in the indicated directory
@@ -138,7 +294,8 @@ readQSM.mat <- function(qsmfile, qsmver = "by_name") {
 #'
 #' @import purrr
 #' @import tidyr
-import_treestructs_from_dir <- function(qsm_path = ".", recursive = F, qsmver = "by_name", filematch_pattern = ".mat", nest = F) {
+import_treestructs_from_dir <- function(qsm_path = ".", recursive = F, qsmver = "by_name", qsmtype = c("by_ext", "QSMtree", "treegraph"), filematch_pattern = "(\\.mat)|(\\.json)", nest = F) {
+    qsmtype = match.arg(qsmtype)
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
     qsm_mats = list.files(path = qsm_path,
@@ -153,7 +310,8 @@ import_treestructs_from_dir <- function(qsm_path = ".", recursive = F, qsmver = 
     qsms = list()
     for (qsmfile in qsm_mats) {
         if (verbose) print(paste("Reading", qsmfile))
-        qsms[[qsmfile]] = readQSM.mat(qsmfile, qsmver = qsmver)
+        # assume for now that .mat files are QSMtree, and .json files are treegraph
+        qsms[[qsmfile]] = readQSM(qsmfile, qsmtype = qsmtype, qsmver = qsmver)
         setTxtProgressBar(pb, getTxtProgressBar(pb) + 1)
     }
 

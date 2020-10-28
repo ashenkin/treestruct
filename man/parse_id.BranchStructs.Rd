@@ -4,15 +4,20 @@
 \alias{parse_id.BranchStructs}
 \title{parse_id.BranchStructs}
 \usage{
-\method{parse_id}{BranchStructs}(obj, treetag_regex = ".*",
-  branch_regex = "B\\\\d+[S][H]?", nobranchcode = F, ...)
+\method{parse_id}{BranchStructs}(
+  obj,
+  treetag_regex = ".*",
+  branch_regex = "B\\\\d+[S][H]?",
+  nobranchcode = F,
+  ...
+)
 }
 \arguments{
 \item{obj}{treestruct object}
 
 \item{treetag_regex}{regex to match tree tag, Default: '.*'}
 
-\item{branch_regex}{regex to match branchcode, Default: 'B\ded+\link[=H]{S}?'}
+\item{branch_regex}{regex to match branchcode, Default: 'B\\ded+\link[=H]{S}?'}
 
 \item{nobranchcode}{set to TRUE if there is no branch code in the identifier, Default: FALSE}
 }

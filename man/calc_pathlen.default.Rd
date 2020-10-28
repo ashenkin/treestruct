@@ -4,8 +4,12 @@
 \alias{calc_pathlen.default}
 \title{calc_pathlen.default}
 \usage{
-\method{calc_pathlen}{default}(tree_structure, length_col = "len",
-  parent_row_col = "parent_row", path_len_col = "path_len")
+\method{calc_pathlen}{default}(
+  tree_structure,
+  length_col = "len",
+  parent_row_col = "parent_row",
+  path_len_col = "path_len"
+)
 }
 \arguments{
 \item{tree_structure}{a tree structure dataframe}

@@ -4,8 +4,7 @@
 \alias{write_files_from_mats_dir}
 \title{write_files_from_mats_dir}
 \usage{
-write_files_from_mats_dir(qsm_path = ".", recursive = F,
-  qsmver = 2.3)
+write_files_from_mats_dir(qsm_path = ".", recursive = F, qsmver = 2.3)
 }
 \arguments{
 \item{qsm_path}{path to directory containing treeQSM .mat files}
