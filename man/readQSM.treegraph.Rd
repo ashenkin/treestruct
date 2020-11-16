@@ -18,7 +18,12 @@ a 3-element list of file (filename), CylData, and BranchData
 reads in a QSM file in treegraph format and passes back cylinder and branch data
 }
 \details{
-DETAILS
+Treegraphs are described by nodes that connect cylinders, as opposed to internodes as in treeQSM.
+In addition, treegraphs sometimes have furcations at the most basal node (think of a tree that branches at the soil
+surface).  In these cases, treestruct's use of internodes instead of nodes as the most basic element breaks down,
+as there is no way to indicate that the two (or more) most basal cylinders should be connected.  To get around this issue,
+we add a 0-length, 0-width cylinder at the base of treegraph objects with basal furcations to enable that connectivity.  We must make
+sure that analyses that could be thrown off by this extra cylinder make accomodations for it.
 }
 \examples{
 \dontrun{

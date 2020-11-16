@@ -119,7 +119,12 @@ readQSM.mat <- function(qsmfile, qsmver = "by_name") {
 #' @param qsmfile path to treegraph file
 #' @param qsmver version of treegraph used to make the treegraph file, Default: by_name
 #' @return a 3-element list of file (filename), CylData, and BranchData
-#' @details DETAILS
+#' @details Treegraphs are described by nodes that connect cylinders, as opposed to internodes as in treeQSM.
+#' In addition, treegraphs sometimes have furcations at the most basal node (think of a tree that branches at the soil
+#' surface).  In these cases, treestruct's use of internodes instead of nodes as the most basic element breaks down,
+#' as there is no way to indicate that the two (or more) most basal cylinders should be connected.  To get around this issue,
+#' we add a 0-length, 0-width cylinder at the base of treegraph objects with basal furcations to enable that connectivity.  We must make
+#' sure that analyses that could be thrown off by this extra cylinder make accomodations for it.
 #' @examples
 #' \dontrun{
 #' if(interactive()){
@@ -227,6 +232,22 @@ readQSM.treegraph <- function(qsmfile, qsmver = "by_name") {
         cyldata = cyldata %>%
             dplyr::rename(!!cyl_col_names) %>%
             dplyr::select(names(cyl_col_names)) # only keep columns that match what we need
+        # add a 0-width, 0-length cylinder to the base of the QSM to enable connectivity for basal furcations
+        # assume that an internode with NA parent indicates a basal internode.
+        # we'll just add this extra cylinder if there is more than one basal internode (i.e. basal furcation)
+        # TODO just add the basal node when it's really needed, not just when sum(NA) > 1...
+        # had been assuming all na's were due to missing basal node, but turns out that's not the case.
+        cyldata$parent_row = treestruct::parent_row(cyldata$parent_id, cyldata$internode_id) # set parent row if needed in other treestruct functions
+
+        if (sum(is.na(cyldata$parent_row)) > 1) {
+            base_cyl = cyldata %>% dplyr::filter(is.na(parent_row)) %>%
+                slice(1L) %>%
+                dplyr::mutate(rad = 0, len = 0, internode_id = parent_id, parent_id = NA, parent_row = NA, branch_data_row = NA, branch_order = NA, index_num = NA)
+            cyldata = base_cyl %>% dplyr::bind_rows(cyldata)
+            # re-run parent row with basal internode added
+            cyldata$parent_row = treestruct::parent_row(cyldata$parent_id, cyldata$internode_id)
+        }
+
         # branchdata = branchdata %>% dplyr::rename(!!branch_col_names)
     } else {
         stop("must specify a qsm version")
