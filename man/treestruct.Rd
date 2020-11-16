@@ -3,7 +3,6 @@
 \docType{package}
 \name{treestruct}
 \alias{treestruct}
-\alias{treestruct-package}
 \title{treestruct: A package for processing and analysing tree structural data}
 \description{
 The treestruct package handles tree data derived from QSM models as well as

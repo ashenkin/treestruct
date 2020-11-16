@@ -4,7 +4,7 @@
 \alias{setGraph.BranchStructs}
 \title{setGraph.BranchStructs}
 \usage{
-\method{setGraph}{BranchStructs}(obj)
+\method{setGraph}{BranchStructs}(obj, ts_accessor = getTreestruct)
 }
 \arguments{
 \item{obj}{BranchStructs object}
@@ -16,7 +16,10 @@ OUTPUT_DESCRIPTION
 FUNCTION_DESCRIPTION
 }
 \details{
-DETAILS
+Invalid treestructs will have graph set to NA.  This means that all functions making use of graphs will have to
+be able to handle NA as an input in addition to a graph object.  This is a design decision.  An alternative is to use an empty graph object, but then
+it becomes less obvious which treestructs are invalid and hence don't have graphs, and could lead to including erroneous
+data in analyses.
 }
 \examples{
 \dontrun{

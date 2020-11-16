@@ -21,7 +21,7 @@ setDataset.TreeStructs <- function(obj, newVal) {
 #' @export
 #' @rdname setTreestruct.TreeStructs
 #'
-setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) {
+setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA, abort_when_invalid = F) {
     newobj = obj
 
     # convert units to meters
@@ -44,10 +44,18 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) 
                       d_parent = !!rlang::sym(obj$radius_col)*2, # to make compliant with branchstructs.  TODO remove once treestructs no longer inherits from branchstructs
                       d_child = d_parent) %>%
         tidyr::nest(.key = "treestruct")
+
+
+    # reorder internodes - necessary for many operations
+    newobj = reorder_internodes(newobj)
+
     # validate treestructs
     if (!getOption("skip_validation", default = FALSE)) {
-        valid_treestruct = validate_treestruct(newobj)
-        if (valid_treestruct) return(newobj)
+        validation = validate_treestruct(newobj)
+        valid_treestruct = validation[["all_valid"]]
+        newobj = validation[["treestructs"]]
+
+        if (valid_treestruct | !abort_when_invalid) return(newobj)
         else {
             warning(paste("treestructs not valid,
                            returning unmodified TreeStructs object ID ", obj$id))
@@ -57,7 +65,6 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA) 
         warning("validation turned off, returning unvalidated TreeStructs")
         return(newobj)
     }
-
 }
 
 #' @export
@@ -76,31 +83,71 @@ getCylSummary.TreeStructs <- function(obj, idx = NA, concat = T) {
     }
 }
 
+#' @title setGraph.TreeStructs
+#' @description FUNCTION_DESCRIPTION
+#' @param obj TreeStructs object
+#' @return OUTPUT_DESCRIPTION
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname setGraph.TreeStructs
+#'
+setGraph.TreeStructs <- function(obj) {
+
+    obj = setGraph.BranchStructs(obj, ts_accessor = getCylSummary)
+
+    return(obj)
+}
+
 # Validators ####
 
 #' @import crayon
 validate_treestruct.TreeStructs <- function(obj) {
     verbose <- getOption("treestruct_verbose")
     if(is.null(verbose)) verbose <- FALSE
-    valid = T
+
+    # set validation flag columns
+    obj$treestructs$valid_parents = NA
+    obj$treestructs$valid_df = NA
+    obj$treestructs$valid_internodes = NA
+    obj$treestructs$valid = NA
+
+    all_valid = T
     treestructs = obj$treestructs
     for (this_row in 1:nrow(treestructs)) { # loop over all treestruct dfs in object
+
         thisTree = treestructs[[this_row, obj$idcol]]
-        this_treestruct = treestructs[[this_row, "treestruct"]]
+        this_treestruct = treestructs[[this_row, "treestruct"]][[1]]
         if (verbose) message(paste("Validating Tree",thisTree))
-        this_valid = T
-        this_valid = this_valid & validate_parents(1:nrow(this_treestruct), this_treestruct[[obj$parent_row_col]],
+
+        parents_valid = validate_parents(1:nrow(this_treestruct), this_treestruct[[obj$parent_row_col]],
                                          parents_are_rows = T)
-        this_valid = this_valid & is.data.frame(this_treestruct)
-            if (!is.data.frame(this_treestruct)) warning("Treestruct not a dataframe error")
+        obj$treestructs[this_row,]$valid_parents = parents_valid
+        if (!parents_valid) warning(crayon::red(paste("Parents NOT valid:",thisTree)))
 
-        this_valid = this_valid & validate_internodes(this_treestruct %>% dplyr::mutate(internode_id = 1:nrow(this_treestruct)), ignore_error_col = NA)
-        if (verbose) message(paste(thisTree, ifelse(this_valid, "passed", crayon::red("failed")), "validation"))
-        valid = valid & this_valid
+        df_valid = is.data.frame(this_treestruct)
+        obj$treestructs[this_row,]$valid_df = df_valid
+        if (!df_valid) warning(crayon::red(paste("treestruct not a dataframe:",thisTree)))
 
+        internodes_valid = validate_internodes(this_treestruct %>% dplyr::mutate(internode_id = 1:nrow(this_treestruct)),
+                                               ignore_error_col = NA)
+        obj$treestructs[this_row,]$valid_internodes = internodes_valid
+        if (!internodes_valid) warning(crayon::red(paste("internodes NOT valid:", thisTree)))
+
+        this_valid = parents_valid & df_valid & internodes_valid
+
+        obj$treestructs[this_row,] = mutate(obj$treestructs[this_row,], valid = all(c_across(contains("valid")), na.rm = T))
+        this_valid  # Set flag indicating whether treestruct is completely valid or not
+
+        all_valid = all_valid & this_valid
     }
     # assume columns are all there.  TODO validate column names.
-    return(valid)
+    return(list(all_valid = all_valid, treestructs = obj))
 }
 
 # Utilities ####
@@ -255,12 +302,18 @@ assign_cyls_to_crown <- function(obj, ...) {
 assign_cyls_to_crown.TreeStructs <- function(obj, daughter_threshold = 0.25) {
     if (! check_property(obj, "internodes_reordered")) obj = reorder_internodes(obj)
     if (! check_property(obj, "furcations_corrected")) obj = correct_furcations(obj)
-    if (! check_property(obj, "first_branch_assigned")) obj = find_first_branch(obj, daughter_threshold)
 
-    # TODO figure out how to pass arguments by name (tried with pmap, but wasn't working)
-    obj$treestructs$treestruct = purrr::map2(getTreestruct(obj, concat = FALSE),
-                                             getTreestructs(obj)$first_branch_id,
-                                             assign_cyls_to_crown.default)
+    if (obj$trees_not_branches) {
+        if (! check_property(obj, "first_branch_assigned")) obj = find_first_branch(obj, daughter_threshold)
+        # TODO figure out how to pass arguments by name (tried with pmap, but wasn't working)
+        obj$treestructs$treestruct = purrr::map2(getTreestruct(obj, concat = FALSE),
+                                                 getTreestructs(obj)$first_branch_id,
+                                                 assign_cyls_to_crown.default)
+    } else {
+        # assign all internodes to crown if it's a branch
+        obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE),
+                                                ~ mutate(.x, crown = T))
+    }
     obj$cyls_assigned_to_crown = T
     return(obj)
 }
@@ -302,10 +355,27 @@ calc_dbh <- function(obj) {
 
 #' @export
 calc_dbh.TreeStructs <- function(obj) {
-    dbhlist = map(obj$treestructs$treestruct, calc_dbh_ts)
-    obj$treestructs$dbh = unlist(lapply(dbhlist, `[[`, "dbh"))
-    obj$treestructs$pom = unlist(lapply(dbhlist, `[[`, "pom"))
-    return(obj)
+    # if the QSM is from a branch not a tree, then don't calculate dbh
+    if (! "trees_not_branches" %in% names(obj)) {
+        # assume they're trees unless stated otherwise
+        dbhlist = map(obj$treestructs$treestruct, calc_dbh_ts)
+        obj$treestructs$dbh = unlist(lapply(dbhlist, `[[`, "dbh"))
+        obj$treestructs$pom = unlist(lapply(dbhlist, `[[`, "pom"))
+        return(obj)
+    } else {
+        if(obj$trees_not_branches) {
+            # stated that QSMs are of trees
+            dbhlist = map(obj$treestructs$treestruct, calc_dbh_ts)
+            obj$treestructs$dbh = unlist(lapply(dbhlist, `[[`, "dbh"))
+            obj$treestructs$pom = unlist(lapply(dbhlist, `[[`, "pom"))
+            return(obj)
+        } else {
+            # if the QSMs are from branches.
+            obj$treestructs$dbh = NA
+            obj$treestructs$pom = NA
+            return(obj)
+        }
+    }
 }
 
 #' @export
@@ -506,12 +576,62 @@ length_scaling.TreeStructs <- function(obj) {
 }
 
 #' @export
-run_all.TreeStructs <- function(obj, calc_dbh = T) {
-    if (obj$trees_not_branches) {
-        obj = assign_cyls_to_crown(obj) # only assign crown columns for whole trees, not hand-measured branches
-    }
+run_all.TreeStructs <- function(obj, calc_dbh = T, ...) {
+    if (! obj$trees_not_branches) calc_dbh = F
+    obj = assign_cyls_to_crown(obj)
     obj = make_convhull(obj) # convhull won't work on hand measured branches
-    obj = run_all.default(obj, calc_dbh)
+    obj = run_all.default(obj, calc_dbh, ...)
     obj = calc_sa_above(obj)
     return(obj)
+}
+
+# Visualization ####
+
+#' @title visNetwork.TreeStructs
+#' @description visualize tree network.  This overwrites visNetwork for TreeStructs objects.
+#' @param bss TreeStructs object (requred)
+#' @param index \code{character} or \code{integer} char matching TreeStructs id column, or index of branch in TreeStructs object (required)
+#' @param hierarchical \code{logical}, plot in hierarchical layout. Default: T
+#' @param width_factor \code{numeric} edge width factor, Default: 100
+#' @param length_factor \code{numeric} edge length factor, Default: 10
+#' @return visNetwork object
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  visNetwork(bss_obj) %>% visEdges(arrows = "middle")
+#'  }
+#' }
+#' @export
+#' @rdname visNetwork.TreeStructs
+#' @seealso
+#'  \code{\link[visNetwork]{visNetwork-igraph}},\code{\link[visNetwork]{visNetwork}}
+visNetwork.TreeStructs <- function(ts, index, hierarchical = T, width_factor = 100, length_factor = 10) {
+
+    if (is.character(index)) {
+        index = enquo(index)
+        this_tidygraph = ts$treestructs %>%
+            dplyr::filter(!!sym(ts$idcol) := !!index) %>%
+            dplyr::pull(graph)
+        this_id = ts$treestructs %>%
+            dplyr::filter(!!sym(ts$idcol) := !!index) %>%
+            dplyr::pull(!!sym(ts$idcol))
+    } else if (is.numeric(index)) {
+        # index is lookup number
+        this_tidygraph = ts$treestructs[index,]$graph[[1]]
+        this_id = ts$treestructs[index,ts$idcol][[1]]
+    }
+    netdata = visNetwork::toVisNetworkData(this_tidygraph)
+    netdata$edges = netdata$edges %>% dplyr::mutate(width = rad * 2 * width_factor, length = len * length_factor)
+    ret =
+        visNetwork::visNetwork(netdata$nodes, netdata$edges, layout = "layout_with_fr", main = this_id) %>%
+        visNetwork::visNodes(font = list(size = 25) ,
+                             scaling = list(label = list(
+                                 enabled = TRUE,
+                                 min = 25, max = 100,
+                                 maxVisible = 100,
+                                 drawThreshold = 1
+                             )))
+    if (hierarchical) ret = ret %>% visNetwork::visHierarchicalLayout()
+    return(ret)
 }

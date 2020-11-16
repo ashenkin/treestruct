@@ -4,8 +4,12 @@
 \alias{add_opt_col}
 \title{add_opt_col}
 \usage{
-add_opt_col(lidar_trees, dfs = "all", qsm_idx_col = "qsm_idx",
-  overwrite_existing_cols = F)
+add_opt_col(
+  lidar_trees,
+  dfs = "all",
+  qsm_idx_col = "qsm_idx",
+  overwrite_existing_cols = F
+)
 }
 \arguments{
 \item{lidar_trees}{concat_df[\link{"dataset}]}

@@ -4,8 +4,7 @@
 \alias{validate_internode_order}
 \title{validate_internode_order}
 \usage{
-validate_internode_order(parents, internode_id = NA,
-  parents_are_rows = T)
+validate_internode_order(parents, internode_id = NA, parents_are_rows = T)
 }
 \arguments{
 \item{parents}{vector of parent internodes, either rows or id's (if id's, then internode_id parameter required)}

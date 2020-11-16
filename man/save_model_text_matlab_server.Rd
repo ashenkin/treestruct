@@ -4,8 +4,7 @@
 \alias{save_model_text_matlab_server}
 \title{save_model_text_matlab_server}
 \usage{
-save_model_text_matlab_server(qsm_path = ".", recursive = F,
-  treeqsm_path = "")
+save_model_text_matlab_server(qsm_path = ".", recursive = F, treeqsm_path = "")
 }
 \arguments{
 \item{qsm_path}{PARAM_DESCRIPTION, Default: '.'}

@@ -4,10 +4,14 @@
 \alias{add_tree_data}
 \title{add_tree_data}
 \usage{
-add_tree_data(lidar_trees, dfs = "all",
-  tree_data_df_name = "tree_data", data_cols = c("dbh", "pom",
-  "height", "Astem_chambers_2004"), overwrite_existing_cols = F,
-  match_col = "tree")
+add_tree_data(
+  lidar_trees,
+  dfs = "all",
+  tree_data_df_name = "tree_data",
+  data_cols = c("dbh", "pom", "height", "Astem_chambers_2004"),
+  overwrite_existing_cols = F,
+  match_col = "tree"
+)
 }
 \arguments{
 \item{lidar_trees}{PARAM_DESCRIPTION}
