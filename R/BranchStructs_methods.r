@@ -561,8 +561,10 @@ parse_id <- function(obj, ...) {
 #' @title parse_id.BranchStructs
 #' @description parse the plot, tree tag, and branch identifier out from the concatenated identifier
 #' @param obj treestruct object
-#' @param treetag_regex regex to match tree tag, Default: '.*'
-#' @param branch_regex regex to match branchcode, Default: 'B\\ded+[S][H]?'
+#' @param treetag_regex regex to match tree tag, Default: `[^.]+`
+#' @param branch_regex regex to match branchcode, Default: `B\\d+(SH|S|H)`
+#' @param treetag_sec_no which section of the string (separated by `[_-]`) contains the treetag? Default: 2
+#' @param branch_sec_no which section of the string (separated by `[_-]`) contains the branch code? Default: 3
 #' @param nobranchcode set to TRUE if there is no branch code in the identifier, Default: FALSE
 #' @return treestruct object
 #' @details This function assumes the id column (idcol) is in the form of "plotcode-treecode-branchcode"
@@ -574,16 +576,16 @@ parse_id <- function(obj, ...) {
 #' }
 #' @export
 #' @rdname parse_id.BranchStructs
-parse_id.BranchStructs <- function(obj, treetag_regex = ".*", branch_regex = "B\\d+[S][H]?", nobranchcode = F, ...) {
+parse_id.BranchStructs <- function(obj, treetag_regex = "[^.]+", branch_regex = "B\\d+(SH|S|H)", treetag_sec_no = 2, branch_sec_no = 3, nobranchcode = F, ...) {
     split_treecode <- function(x) {
         codes = stringr::str_split(x, "[-_]")
         codes = purrr::map(codes, function(x) {
-            x[2] = stringr::str_extract(x[2], treetag_regex)
+            x[treetag_sec_no] = stringr::str_extract(x[treetag_sec_no], treetag_regex)
             return(x)
         } )
         if (! nobranchcode) {
             codes = purrr::map(codes, function(x) {
-                x[3] = stringr::str_extract(x[3], branch_regex)
+                x[branch_sec_no] = stringr::str_extract(x[branch_sec_no], branch_regex)
                 return(x)
             } )
         }
@@ -593,9 +595,9 @@ parse_id.BranchStructs <- function(obj, treetag_regex = ".*", branch_regex = "B\
     assign_treecode_cols <- function(df, colname) {
         newcols = split_treecode(df[[colname]])
         df$plot = sapply(newcols, `[[`, 1)
-        df$tag = sapply(newcols, `[[`, 2)
+        df$tag = sapply(newcols, `[[`, treetag_sec_no)
         if (! nobranchcode) {
-            df$branch = sapply(newcols, `[[`, 3)
+            df$branch = sapply(newcols, `[[`, branch_sec_no)
         }
         return(df)
     }
