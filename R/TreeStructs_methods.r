@@ -9,7 +9,7 @@ setDataset.TreeStructs <- function(obj, newVal) {
 #' @description This validates and creates the nested dataframe and populates the object with it.
 #' @param obj TreeStructs object
 #' @param treestructs treestruct data frame
-#' @param convert_to_meters numeric.  TreeQSM uses meters as a standard unit.  If units are not in meters, pass the conversion factor here such that meters = QSMunits * convert_to_meters.  Only radius and length values are converted, not cylinder positions or axes.  A value of NA results in no conversion.  Default: NA
+#' @param convert_to_meters numeric.  TreeQSM and treegraph use meters as a standard unit.  If units are not in meters, pass the conversion factor here such that meters = QSMunits * convert_to_meters.  Only radius and length values are converted, not cylinder positions or axes.  A value of NA results in no conversion.  Default: NA
 #' @return TreeStructs object with validated, nested, treestructs dataframe.
 #' @details We use the column names defined in the object properties.
 #' @examples
@@ -429,9 +429,32 @@ calc_vol.TreeStructs <- function(obj) {
 }
 
 
+
+#' @title Calculate surface area above every node
+#'
+#' @param obj Treestruct object
+#'
+#' @return treestruct object
+#' @details an 'sa_above' column is added to the cyl_summ nested dataframe
 #' @export
+#'
+#' @examples
 calc_sa_above.TreeStructs <- function(obj) {
     obj$treestructs$cyl_summ = purrr::map(getCylSummary(obj, concat = FALSE), calc_sa_above)
+    return(obj)
+}
+
+#' @title Calculate wood volume above every node
+#'
+#' @param obj Treestruct object
+#'
+#' @return treestruct object
+#' @details a 'vol_above' column is added to the cyl_summ nested dataframe
+#' @export
+#'
+#' @examples
+calc_vol_above.TreeStructs <- function(obj) {
+    obj$treestructs$cyl_summ = purrr::map(getCylSummary(obj, concat = FALSE), calc_vol_above)
     return(obj)
 }
 

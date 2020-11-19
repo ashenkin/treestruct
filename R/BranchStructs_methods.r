@@ -670,7 +670,15 @@ calc_sa_above <- function(obj) {
     UseMethod("calc_sa_above", obj)
 }
 
+#' @title Calculate surface area above every node
+#'
+#' @param obj Branchstruct object
+#'
+#' @return Branchstruct object
+#' @details an 'sa_above' column is added to the treestruct nested dataframe
 #' @export
+#'
+#' @examples
 calc_sa_above.BranchStructs <- function(obj) {
     obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), calc_sa_above)
     return(obj)
@@ -713,6 +721,42 @@ calc_vol.BranchStructs <- function(obj) {
 calc_vol.default <- function(obj) {
     warning("Doesn't apply to this class")
     return(obj)
+}
+
+#' @export
+calc_vol_above <- function(obj) {
+    UseMethod("calc_vol_above", obj)
+}
+
+#' @title Calculate wood volume above every node
+#'
+#' @param obj Branchstruct object
+#'
+#' @return Branchstruct object
+#' @details a 'vol_above' column is added to the treestruct nested dataframe
+#' @export
+#'
+#' @examples
+calc_vol_above.BranchStructs <- function(obj) {
+    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), calc_vol_above)
+    return(obj)
+}
+
+#' @export
+calc_vol_above.default <- function(ts) {
+    if (! "parent_row" %in% names(ts)) {
+        parent_row = parent_row(ts$parent_id, ts$internode_id)
+    } else {
+        parent_row = ts$parent_row
+    }
+    # wrap cpp function above
+    if (! validate_internode_order(parent_row)) {
+        warning(paste("Bad cyl file order in tree ", ts$tree[1]))
+        ts$vol_above = NA
+        return(ts)
+    }
+    ts$vol_above = calc_total_x_above_internode_cpp(ts$vol, parent_row)
+    return(ts)
 }
 
 #' @title calc_pathlen

@@ -6,7 +6,7 @@
 \usage{
 \method{parse_id}{BranchStructs}(
   obj,
-  treetag_regex = ".*",
+  treetag_regex = "[^.]+",
   branch_regex = "B\\\\d+(SH|S|H)",
   treetag_sec_no = 2,
   branch_sec_no = 3,
@@ -17,7 +17,7 @@
 \arguments{
 \item{obj}{treestruct object}
 
-\item{treetag_regex}{regex to match tree tag, Default: \verb{.*}}
+\item{treetag_regex}{regex to match tree tag, Default: \verb{[^.]+}}
 
 \item{branch_regex}{regex to match branchcode, Default: \verb{B\\\\d+(SH|S|H)}}
 

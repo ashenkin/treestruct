@@ -29,7 +29,7 @@
 #' @export
 #' @rdname TreeStructs
 
-TreeStructs <- function(dataset = NA, treestructs) {
+TreeStructs <- function(dataset = NA, treestructs, convert_to_meters = NA) {
     # TODO allow setting of colnames
 
     stopifnot(length(dataset) == 1)
@@ -68,7 +68,7 @@ TreeStructs <- function(dataset = NA, treestructs) {
 
     # make treestructs inherit from branchstructs until we create a generic class that both can inherit from
     TreeDataset = structure(TreeDataset, class = c("TreeStructs", "BranchStructs"))
-    TreeDataset = setTreestruct(TreeDataset, treestructs)
+    TreeDataset = setTreestruct(TreeDataset, treestructs, convert_to_meters)
     TreeDataset = setTips(TreeDataset)
     return(TreeDataset)
 }

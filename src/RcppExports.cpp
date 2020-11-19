@@ -41,11 +41,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// calc_total_x_above_internode_cpp
+NumericVector calc_total_x_above_internode_cpp(NumericVector x, NumericVector parentrow);
+RcppExport SEXP _treestruct_calc_total_x_above_internode_cpp(SEXP xSEXP, SEXP parentrowSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type parentrow(parentrowSEXP);
+    rcpp_result_gen = Rcpp::wrap(calc_total_x_above_internode_cpp(x, parentrow));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_treestruct_assign_branchnum_cpp", (DL_FUNC) &_treestruct_assign_branchnum_cpp, 2},
     {"_treestruct_calc_pathlen_cpp", (DL_FUNC) &_treestruct_calc_pathlen_cpp, 2},
     {"_treestruct_calc_sa_above_cpp", (DL_FUNC) &_treestruct_calc_sa_above_cpp, 2},
+    {"_treestruct_calc_total_x_above_internode_cpp", (DL_FUNC) &_treestruct_calc_total_x_above_internode_cpp, 2},
     {NULL, NULL, 0}
 };
 
