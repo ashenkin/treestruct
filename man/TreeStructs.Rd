@@ -4,7 +4,7 @@
 \alias{TreeStructs}
 \title{TreeStructs}
 \usage{
-TreeStructs(dataset = NA, treestructs)
+TreeStructs(dataset = NA, treestructs, convert_to_meters = NA)
 }
 \arguments{
 \item{dataset}{name of dataset this object is based on}

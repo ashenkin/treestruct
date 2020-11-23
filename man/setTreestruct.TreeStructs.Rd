@@ -11,7 +11,7 @@
 
 \item{treestructs}{treestruct data frame}
 
-\item{convert_to_meters}{numeric.  TreeQSM uses meters as a standard unit.  If units are not in meters, pass the conversion factor here such that meters = QSMunits * convert_to_meters.  Only radius and length values are converted, not cylinder positions or axes.  A value of NA results in no conversion.  Default: NA}
+\item{convert_to_meters}{numeric.  TreeQSM and treegraph use meters as a standard unit.  If units are not in meters, pass the conversion factor here such that meters = QSMunits * convert_to_meters.  Only radius and length values are converted, not cylinder positions or axes.  A value of NA results in no conversion.  Default: NA}
 }
 \value{
 TreeStructs object with validated, nested, treestructs dataframe.

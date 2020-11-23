@@ -934,6 +934,10 @@ add_tree_data <- function(lidar_trees, dfs = "all", tree_data_df_name = "tree_da
 
 }
 
+#' @title Calculate the parent_row column
+#' @param parent_id
+#' @param internode_id
+#'
 #' @export
 parent_row <- function(parent_id, internode_id) {
   return(

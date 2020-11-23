@@ -431,3 +431,65 @@ save_model_text_matlab_server <- function(qsm_path = ".", recursive = F, treeqsm
     return(qsm_mats)
 }
 
+
+#' @title Get children of internode
+#'
+#' @param ts treestruct dataframe (not object)
+#' @param internode_id if this is provided, the id of the internode for which children are sought
+#' @param row if this is provided, the row number of the internode for which children are sought
+#'
+#' @return vector of rows of internode children, including the row of the specified internode
+#' @export
+#' @details only one of internode_id and row arguments are required.
+#' @examples
+get_child_rows <- function(ts, internode_id, row) {
+
+    if (!missing(internode_id)) thisrow = which(internode_id == ts$internode_id)
+    else if (!missing(row)) thisrow = row
+    else stop("One of internode_id and row must be specified.")
+    return(get_children(thisrow, ts$parent_row))
+}
+
+
+#' @title Get treestruct of children of internode
+#'
+#' @param ts treestruct dataframe (not object)
+#' @param internode_id if this is provided, the id of the internode for which children are sought
+#' @param row if this is provided, the row number of the internode for which children are sought
+#'
+#' @return treestruct comprised of of rows of internode children, including the row of the specified internode.  Parent_rows are re-computed.
+#' @export
+#' @details only one of internode_id and row arguments are required.
+#' @examples
+get_branch <- function(ts, internode_id, row) {
+
+    if (!missing(internode_id)) thisrow = which(internode_id == ts$internode_id)
+    else if (!missing(row)) thisrow = row
+    else stop("One of internode_id and row must be specified.")
+
+    child_ts = ts[get_child_rows(ts, row = thisrow),]
+    child_ts$parent_row = parent_row(parent_id = child_ts$parent_id, internode_id = child_ts$internode_id)
+    return(child_ts)
+}
+
+#' @title Prune a branch from a treestruct dataframe
+#'
+#' @param ts treestruct dataframe (not object)
+#' @param internode_id if this is provided, the id of the internode for which children are sought
+#' @param row if this is provided, the row number of the internode for which children are sought
+#'
+#' @return treestruct pruned of branch starting with the specified internode.  Parent_rows are re-computed.
+#' @export
+#' @details only one of internode_id and row arguments are required.
+#' @examples
+prune_branch <- function(ts, internode_id, row) {
+
+    if (!missing(internode_id)) thisrow = which(internode_id == ts$internode_id)
+    else if (!missing(row)) thisrow = row
+    else stop("One of internode_id and row must be specified.")
+
+    branch_rows = get_child_rows(ts, row = thisrow)
+    ts = ts[-branch_rows,]
+    ts$parent_row = parent_row(parent_id = ts$parent_id, internode_id = ts$internode_id)
+    return(ts)
+}
