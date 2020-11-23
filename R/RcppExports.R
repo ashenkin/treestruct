@@ -18,3 +18,7 @@ calc_total_x_above_internode_cpp <- function(x, parentrow) {
     .Call(`_treestruct_calc_total_x_above_internode_cpp`, x, parentrow)
 }
 
+get_children <- function(thisrow, parentrow) {
+    .Call(`_treestruct_get_children`, thisrow, parentrow)
+}
+

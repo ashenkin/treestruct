@@ -1027,6 +1027,11 @@ run_all.default <- function(obj, calc_dbh = T, calc_summ_cyl = T, calc_max_heigh
     return(obj)
 }
 
+# Utilities ####
+
+
+
+
 # Visualization ####
 
 #' @export
