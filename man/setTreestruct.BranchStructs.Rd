@@ -20,7 +20,7 @@ BranchStructs object with validated, nested, treestructs dataframe.
 This validates and creates the nested dataframe and populates the object with it.
 }
 \details{
-We use the column names defined in the object properties.
+We use the column names defined in the object properties.  convert_to_meters is the amount to divide by to get meters.  cm = 100, mm = 1000, etc.
 }
 \examples{
 \dontrun{

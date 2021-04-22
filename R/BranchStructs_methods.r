@@ -1,5 +1,41 @@
 # Accessors ####
 
+#' @title getFile
+#' @description file list accessor
+#' @param obj TreeStructs or BranchStructs object
+#' @return vector of base file names
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname getFile
+
+getFile <- function(obj) {
+    UseMethod("getFile", obj)
+}
+
+#' @title FUNCTION_TITLE
+#' @description FUNCTION_DESCRIPTION
+#' @param obj PARAM_DESCRIPTION
+#' @return OUTPUT_DESCRIPTION
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname getFile.default
+
+getFile.default <- function(obj) {
+    return(getTreestructs(obj)$file)
+}
+
 #' @title FUNCTION_TITLE
 #' @description FUNCTION_DESCRIPTION
 #' @param obj PARAM_DESCRIPTION
@@ -60,7 +96,7 @@ setDataset.BranchStructs <- function(obj, newVal) {
 }
 
 #' @export
-setTreestruct <- function(obj, treestruct) {
+setTreestruct <- function(obj, treestruct, ...) {
     UseMethod("setTreestruct", obj)
 }
 
@@ -70,7 +106,7 @@ setTreestruct <- function(obj, treestruct) {
 #' @param treestructs treestruct data frame
 #' @param convert_to_meters Hand-measured branches typically use mm for diameter and cm for length.  treestruct uses meters as a standard unit.
 #' @return BranchStructs object with validated, nested, treestructs dataframe.
-#' @details We use the column names defined in the object properties.
+#' @details We use the column names defined in the object properties.  convert_to_meters is the amount to divide by to get meters.  cm = 100, mm = 1000, etc.
 #' @examples
 #' \dontrun{
 #' if(interactive()){
@@ -92,11 +128,13 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T,
     # TODO make ignore_error dynamic based on obj$ignore_error_col value
     treestructs = treestructs %>%
         tidyr::replace_na(setNames(list(F),obj$ignore_error_col)) %>%
-        ungroup() %>% # grouped variables from previous operations were giving errors here for some reason...
+        dplyr::ungroup() %>% # grouped variables from previous operations were giving errors here for some reason...
         dplyr::mutate(ignore_error := as.logical(ignore_error))  # make sure we end up with a logical column
 
     # convert units to meters
-    if (convert_to_meters) treestructs = treestructs %>%
+    if (convert_to_meters) {
+        if (is.logical(convert_to_meters)) { #default conversion
+            treestructs = treestructs %>%
                                          dplyr::mutate(
                                              !!rlang::sym(obj$length_col) := !!rlang::sym(obj$length_col) / 100, # hand-measured lengths are in cm.  Convert to meters.
                                              !!rlang::sym(obj$d_child_col) := !!rlang::sym(obj$d_child_col) / 1000, # hand-measured diams are in mm.  Convert to meters.
@@ -104,6 +142,17 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T,
                                              # add radius column for compatibility with TreeStructs
                                              !!rlang::sym(obj$radius_col) := (!!rlang::sym(obj$d_parent_col) + !!rlang::sym(obj$d_child_col)) / 2
                                          )
+        } else { # convert_to_meters is the amount to divide by to get meters.  cm = 100, mm = 1000, etc.
+            treestructs = treestructs %>%
+                dplyr::mutate(
+                    !!rlang::sym(obj$length_col) := !!rlang::sym(obj$length_col) / convert_to_meters,
+                    !!rlang::sym(obj$d_child_col) := !!rlang::sym(obj$d_child_col) / convert_to_meters,
+                    !!rlang::sym(obj$d_parent_col) := !!rlang::sym(obj$d_parent_col) / convert_to_meters,
+                    # add radius column for compatibility with TreeStructs
+                    !!rlang::sym(obj$radius_col) := (!!rlang::sym(obj$d_parent_col) + !!rlang::sym(obj$d_child_col)) / 2
+                )
+        }
+    }
 
     # create nested dataframe that is the central piece of the object
     newobj$treestructs = treestructs %>%
@@ -265,8 +314,8 @@ setGraph.BranchStructs <- function(obj, ts_accessor = getTreestruct) {
 
     # do not construct graphs for treestructs that are invalid
     obj$treestructs = obj$treestructs %>%
-            rowwise() %>%
-            mutate(valid = all(c_across(contains("valid")), na.rm = T))
+        dplyr::rowwise() %>%
+        dplyr::mutate(valid = all(dplyr::c_across(contains("valid")), na.rm = T))
             # mutate(graph = ifelse(valid, make_tidygraph(treestruct), NA)) #make_tidygraph(treestruct), NA))
 
     # set invalid treestruct graphs to NA
@@ -978,7 +1027,7 @@ calc_per_rad_class_metrics.default <- function(ts, metrics = c("surf_area", "vol
 
     perclass =
         ts %>%
-        ungroup() %>%
+        dplyr::ungroup() %>%
         dplyr::group_by(rad_class = as.numeric(as.character(cut(rad, breaks = seq(0, ceiling(max(rad, na.rm = T)*2*100)/200, by = 0.005),
                                                    labels = head(seq(0, ceiling(max(rad, na.rm = T)*2*100)/200, by = 0.005), -1))))) %>%
         dplyr::summarize_at(.vars = metrics, ~ sum(., na.rm = T))
@@ -1029,8 +1078,78 @@ run_all.default <- function(obj, calc_dbh = T, calc_summ_cyl = T, calc_max_heigh
 
 # Utilities ####
 
+#' @title save_cylfiles
+#' @description Extract cylinder files from treestruct objects and save them to csv files.
+#' @param obj PARAM_DESCRIPTION
+#' @param ... PARAM_DESCRIPTION
+#' @return OUTPUT_DESCRIPTION
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname save_cylfiles
 
+save_cylfiles <- function(obj, ...) {
+    UseMethod("save_cylfiles", obj)
+}
 
+#' @title FUNCTION_TITLE
+#' @description FUNCTION_DESCRIPTION
+#' @param obj PARAM_DESCRIPTION
+#' @param path PARAM_DESCRIPTION, Default: '.'
+#' @return OUTPUT_DESCRIPTION
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname save_cylfiles.BranchStructs
+
+save_cylfiles.BranchStructs <- function(obj, path = ".") {
+    filenames = getFile(obj)
+    ts_list = getTreestruct(obj, concat = F)
+    for (i in 1:length(filenames)) {
+        write.csv(ts_list[[i]], file.path(path, paste0(filenames[i],".csv")))
+    }
+}
+
+#' @title truncate_branches
+#' @description removes branches smaller than a given radius
+#' @param obj PARAM_DESCRIPTION
+#' @param rad_min minimum radius of branch to keep in meters.  0.05 would mean keeping all branches >= 5cm.
+#' @return
+#' @details make sure to re-run routines that calculate tree metrics after altering the tree
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname truncate_branches
+
+truncate_branches <- function(obj, ...) {
+    UseMethod("truncate_branches", obj)
+}
+
+#' @export
+truncate_branches.BranchStructs <- function(obj, rad_min) {
+    treestructs = getTreestructs(obj)
+    obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), truncate_branches.default, rad_min = rad_min)
+    return(obj)
+}
+
+#' @export
+truncate_branches.default <- function(ts, rad_min) {
+    return(ts[ts$rad >= rad_min,])
+}
 
 # Visualization ####
 
