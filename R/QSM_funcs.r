@@ -493,3 +493,46 @@ prune_branch <- function(ts, internode_id, row) {
     ts$parent_row = parent_row(parent_id = ts$parent_id, internode_id = ts$internode_id)
     return(ts)
 }
+
+
+#' Get all branches of a specified basal radius from a treestruct dataframe
+#'
+#' @param ts treestruct dataframe
+#' @param target_rad target basal radius (in m)
+#' @param range what range around the target radius will you look for branches?
+#'
+#' @return list of treestruct data frames that are the branches that fit the criteria
+#' @export
+#' @details
+#'
+#' @examples
+
+get_all_branches <- function(ts, target_rad, range) {
+    ts$pruned = F
+    ts$picked_already = F
+    branches = list()
+    i = 1
+    no_more_branches_available = F
+    while(1) {
+        while(1) {
+            base_options = ts[!ts$pruned & !ts$picked_already,] #%>% filter(!pruned & !picked_already) # TODO this is slow - fix!
+            this_base = which.min(abs(target_rad - base_options$rad))
+            if (abs(base_options[this_base,]$rad - target_rad) > range) {
+                no_more_branches_available = T
+                break
+            }
+            # set this internode to having been picked already
+            ts[ts$internode_id %in% base_options[this_base,]$internode_id,]$picked_already = T
+            # check if branch contains any pruned section
+            pruned_branch = get_branch(ts, row = this_base)
+            if (any(pruned_branch$pruned)) next # pruned sections exist in this branch.  try again.
+            else break # no pruned sections in this branch - use it
+        }
+        if (no_more_branches_available) break # all done picking branches
+
+        branches[[i]] = pruned_branch %>% select(! c(pruned, picked_already)) # TODO this is slow - fix!
+        ts[ts$internode_id %in% branches[i]$internode_id,]$pruned = T
+        i = i + 1
+    }
+    return(branches)
+}

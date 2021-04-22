@@ -14,7 +14,7 @@ prune_branch(ts, internode_id, row)
 \item{row}{if this is provided, the row number of the internode for which children are sought}
 }
 \value{
-treestruct pruned of branch starting with the specified internode
+treestruct pruned of branch starting with the specified internode.  Parent_rows are re-computed.
 }
 \description{
 Prune a branch from a treestruct dataframe

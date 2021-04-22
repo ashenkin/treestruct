@@ -1,5 +1,5 @@
 #' @title BranchStructs
-#' @description BranchStructs are hand-measured branches.  This is a constructor for the BranchStructs S3 object.  Set column names before importing the treestruct dataframe
+#' @description BranchStructs are hand-measured branches or trees.  This is a constructor for the BranchStructs S3 object.  Set column names before importing the treestruct dataframe
 #' @param dataset name of dataset this object is based on
 #' @param surface_area_total total surface area of branch
 #' @param pathlen_total total pathlength of branch (sum of branch lengths)
@@ -19,7 +19,21 @@
 #' @param d_child_col name of internode diameter @ child (top) column; default = "d_child"
 #' @param d_parent_col name of internode diameter @ parent (base) column; default = "d_parent"
 #' @return OUTPUT_DESCRIPTION
-#' @details DETAILS
+#' @details To create a branchstruct, pass a dataset with the following columns (unless you specify different column names, which is not recommended):
+#' branch_code
+#' date
+#' internode_id
+#' parent_id
+#' n_furcation (optional)
+#' len
+#' major_child_angle (optional)
+#' angle_internode_1 (optional)
+#' angle_internode_2 (optional)
+#' number_nodes_in_section (optional)
+#' is_tip
+#' is_broken
+#' d_child
+#' d_parent
 #' @examples
 #' \dontrun{
 #' if(interactive()){
@@ -29,7 +43,7 @@
 #' @export
 #' @rdname BranchStructs
 
-BranchStructs <- function(dataset = NA, treestructs) {
+BranchStructs <- function(dataset = NA, treestructs, convert_to_meters = NA) {
     # TODO allow setting of colnames
 
     stopifnot(length(dataset) == 1)
@@ -61,7 +75,7 @@ BranchStructs <- function(dataset = NA, treestructs) {
         )
 
     branchDataset = structure(branchDataset, class = "BranchStructs")
-    branchDataset = setTreestruct(branchDataset, treestructs)
+    branchDataset = setTreestruct(branchDataset, treestructs, convert_to_meters)
     if (! branchDataset$tips_set) branchDataset = setTips(branchDataset)
     return(branchDataset)
 }

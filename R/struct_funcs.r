@@ -64,7 +64,7 @@ validate_parents <- function(internode_ids, parent_ids, ignore_errors = NA, pare
         parent_ids = internode_ids[parent_ids]
     }
 
-    if (ignore_base_id) parent_ids = parent_ids[ ! stringr::str_detect(parent_ids, stringr::regex("\\s*base\\s*", ignore.case = T)) ]
+    if (ignore_base_id) parent_ids = parent_ids[ ! stringr::str_detect(parent_ids, stringr::regex("\\s*base\\s*", ignore_case = T)) ]
 
     parents = match(parent_ids, internode_ids)
 
@@ -445,6 +445,7 @@ concat_lidar_trees <- function(lidar_trees, pick_qsm = F, best_qsm = "") {
     first_run = T
     for (lidar_tree in names(lidar_trees)) {
         this_tree = lidar_trees[[lidar_tree]]
+        this_tree$qsm_idx = ifelse("qsm_idx" %in% names(this_tree), this_tree$qsm_idx, NA)
         if (first_run) {
             first_run = F
             surf_area_per_order_tot = this_tree[["surf_area_per_order"]]

@@ -43,8 +43,7 @@ setTreestruct.TreeStructs <- function(obj, treestructs, convert_to_meters = NA, 
                       !!rlang::sym(obj$parentid_col) := internode_id[ifelse(parent_row %in% 0, NA, parent_row)], # vector index ignores 0
                       d_parent = !!rlang::sym(obj$radius_col)*2, # to make compliant with branchstructs.  TODO remove once treestructs no longer inherits from branchstructs
                       d_child = d_parent) %>%
-        tidyr::nest(.key = "treestruct")
-
+        tidyr::nest(treestruct = -!!rlang::sym(obj$idcol))
 
     # reorder internodes - necessary for many operations
     newobj = reorder_internodes(newobj)
@@ -139,10 +138,9 @@ validate_treestruct.TreeStructs <- function(obj) {
         obj$treestructs[this_row,]$valid_internodes = internodes_valid
         if (!internodes_valid) warning(crayon::red(paste("internodes NOT valid:", thisTree)))
 
-        this_valid = parents_valid & df_valid & internodes_valid
+        this_valid = parents_valid & df_valid & internodes_valid  # Set flag indicating whether treestruct is completely valid or not
 
-        obj$treestructs[this_row,] = mutate(obj$treestructs[this_row,], valid = all(c_across(contains("valid")), na.rm = T))
-        this_valid  # Set flag indicating whether treestruct is completely valid or not
+        obj$treestructs[this_row,] = dplyr::mutate(obj$treestructs[this_row,], valid = all(dplyr::c_across(tidyselect::contains("valid")), na.rm = T))
 
         all_valid = all_valid & this_valid
     }
@@ -151,6 +149,29 @@ validate_treestruct.TreeStructs <- function(obj) {
 }
 
 # Utilities ####
+
+#' @title FUNCTION_TITLE
+#' @description FUNCTION_DESCRIPTION
+#' @param obj PARAM_DESCRIPTION
+#' @param path PARAM_DESCRIPTION, Default: '.'
+#' @return OUTPUT_DESCRIPTION
+#' @details DETAILS
+#' @examples
+#' \dontrun{
+#' if(interactive()){
+#'  #EXAMPLE1
+#'  }
+#' }
+#' @export
+#' @rdname save_cylfiles.TreeStructs
+
+save_cylfiles.TreeStructs <- function(obj, path = ".") {
+    filenames = getFile(obj)
+    ts_list = getTreestruct(obj, concat = F)
+    for (i in 1:length(filenames)) {
+        write.csv(ts_list[[i]], file.path(path, paste0(filenames[i],".csv")))
+    }
+}
 
 #' @export
 make_compatible.TreeStructs <- function(obj) {
@@ -562,6 +583,7 @@ make_convhull.default <- function(ts, trees_not_branches) {
         if (crown_defined) {
             ts = subset(ts, ts$crown) # make crown convex hulls for full trees
             this_convhull = geometry::convhulln(ts[,c("x_start","y_start","z_start")], options = "FA")
+
             # TODO make vert2d convhull correct somehow.  it only takes one aspect.  good enough for depth, but not sail area.
             this_vert2d_convhull = geometry::convhulln(ts[,c("y_start","z_start")], options = "FA")
 
@@ -572,6 +594,9 @@ make_convhull.default <- function(ts, trees_not_branches) {
         }
 
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+
+    # if crown has too few points to make convhull, then treat as undefined
+    if (is.na(this_convhull)) crown_defined = F
 
     return(list(convhull = this_convhull,
                 convhull2d = this_2dconvhull,

@@ -4,7 +4,7 @@
 \alias{BranchStructs}
 \title{BranchStructs}
 \usage{
-BranchStructs(dataset = NA, treestructs)
+BranchStructs(dataset = NA, treestructs, convert_to_meters = NA)
 }
 \arguments{
 \item{dataset}{name of dataset this object is based on}
@@ -47,10 +47,24 @@ BranchStructs(dataset = NA, treestructs)
 OUTPUT_DESCRIPTION
 }
 \description{
-BranchStructs are hand-measured branches.  This is a constructor for the BranchStructs S3 object.  Set column names before importing the treestruct dataframe
+BranchStructs are hand-measured branches or trees.  This is a constructor for the BranchStructs S3 object.  Set column names before importing the treestruct dataframe
 }
 \details{
-DETAILS
+To create a branchstruct, pass a dataset with the following columns (unless you specify different column names, which is not recommended):
+branch_code
+date
+internode_id
+parent_id
+n_furcation (optional)
+len
+major_child_angle (optional)
+angle_internode_1 (optional)
+angle_internode_2 (optional)
+number_nodes_in_section (optional)
+is_tip
+is_broken
+d_child
+d_parent
 }
 \examples{
 \dontrun{
