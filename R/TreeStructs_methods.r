@@ -540,9 +540,7 @@ make_convhull.TreeStructs <- function(obj) {
 
     # make sure to overwrite columns
     suppressWarnings(
-        obj$treestructs <- obj$treestructs %>% dplyr::select(-one_of("^convhull$", "^convhull2d$", "^convhull2d_vert$", "^crown_vol_convhull$",
-                                                        "^crown_surfarea_convhull$", "^crown_proj_area_convhull$",
-                                                        "^crown_proj_area_vert_convhull$"))
+        obj$treestructs <- obj$treestructs %>% dplyr::select(-tidyselect::matches("^(convhull|convhull2d|convhull2d_vert|crown_vol_convhull|crown_surfarea_convhull|crown_proj_area_convhull|crown_proj_area_vert_convhull)$"))
     )
 
     #TODO the assignment below is crazy slow.  do it with data.table maybe
