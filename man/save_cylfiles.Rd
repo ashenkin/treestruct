@@ -2,7 +2,7 @@
 % Please edit documentation in R/BranchStructs_methods.r
 \name{save_cylfiles}
 \alias{save_cylfiles}
-\title{FUNCTION_TITLE}
+\title{save_cylfiles}
 \usage{
 save_cylfiles(obj, ...)
 }
@@ -15,7 +15,7 @@ save_cylfiles(obj, ...)
 OUTPUT_DESCRIPTION
 }
 \description{
-FUNCTION_DESCRIPTION
+Extract cylinder files from treestruct objects and save them to csv files.
 }
 \details{
 DETAILS

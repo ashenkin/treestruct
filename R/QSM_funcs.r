@@ -241,7 +241,7 @@ readQSM.treegraph <- function(qsmfile, qsmver = "by_name") {
 
         if (sum(is.na(cyldata$parent_row)) > 1) {
             base_cyl = cyldata %>% dplyr::filter(is.na(parent_row)) %>%
-                slice(1L) %>%
+                dplyr::slice(1L) %>%
                 dplyr::mutate(rad = 0, len = 0, internode_id = parent_id, parent_id = NA, parent_row = NA, branch_data_row = NA, branch_order = NA, index_num = NA)
             cyldata = base_cyl %>% dplyr::bind_rows(cyldata)
             # re-run parent row with basal internode added
@@ -254,6 +254,10 @@ readQSM.treegraph <- function(qsmfile, qsmver = "by_name") {
     }
 
     cyldata$parent_row = treestruct::parent_row(cyldata$parent_id, cyldata$internode_id) # set parent row if needed in other treestruct functions
+
+    if (min(cyldata$branch_order, na.rm = T) == 1) { # currently, treegraph starts branch orders at 1, while treeqsm starts at 0.  Make these compatible.
+        cyldata$branch_order = cyldata$branch_order - 1
+    }
 
     return(list(file = basename(qsmfile), CylData = cyldata, BranchData = NA))
 }

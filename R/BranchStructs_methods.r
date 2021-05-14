@@ -149,7 +149,7 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T,
                     !!rlang::sym(obj$d_child_col) := !!rlang::sym(obj$d_child_col) / convert_to_meters,
                     !!rlang::sym(obj$d_parent_col) := !!rlang::sym(obj$d_parent_col) / convert_to_meters,
                     # add radius column for compatibility with TreeStructs
-                    !!rlang::sym(obj$radius_col) := (!!rlang::sym(obj$d_parent_col) + !!rlang::sym(obj$d_child_col)) / 2
+                    !!rlang::sym(obj$radius_col) := (!!rlang::sym(obj$d_parent_col) + !!rlang::sym(obj$d_child_col)) / 2 / 2 # mean of parent+child, div by 2 for radius instead of diameter
                 )
         }
     }
@@ -396,6 +396,18 @@ check_property.default <- function(obj, prop) {
     if (! prop %in% names(obj)) return(F)
     return(obj[[prop]])
 }
+
+#' @export
+set_property <- function(obj, ...) {
+    UseMethod("set_property", obj)
+}
+
+#' @export
+set_property.default <- function(obj, prop, value) {
+    obj[[prop]] = value
+    return(obj)
+}
+
 # Validators ####
 
 validate_treestruct <- function(obj) {
@@ -1143,6 +1155,7 @@ truncate_branches <- function(obj, ...) {
 truncate_branches.BranchStructs <- function(obj, rad_min) {
     treestructs = getTreestructs(obj)
     obj$treestructs$treestruct = purrr::map(getTreestruct(obj, concat = FALSE), truncate_branches.default, rad_min = rad_min)
+    obj = set_property(obj, "first_branch_assigned", FALSE) # need to re-find first branch when truncating, in case we've truncated first branch
     return(obj)
 }
 
