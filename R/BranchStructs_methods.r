@@ -140,7 +140,7 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T,
                                              !!rlang::sym(obj$d_child_col) := !!rlang::sym(obj$d_child_col) / 1000, # hand-measured diams are in mm.  Convert to meters.
                                              !!rlang::sym(obj$d_parent_col) := !!rlang::sym(obj$d_parent_col) / 1000,
                                              # add radius column for compatibility with TreeStructs
-                                             !!rlang::sym(obj$radius_col) := (!!rlang::sym(obj$d_parent_col) + !!rlang::sym(obj$d_child_col)) / 2
+                                             !!rlang::sym(obj$radius_col) := (!!rlang::sym(obj$d_parent_col) + !!rlang::sym(obj$d_child_col)) / 2 / 2 # mean of parent+child, div by 2 for radius instead of diameter
                                          )
         } else { # convert_to_meters is the amount to divide by to get meters.  cm = 100, mm = 1000, etc.
             treestructs = treestructs %>%
@@ -214,7 +214,7 @@ getTreestruct.BranchStructs <- function(obj, concat = TRUE) {
         #     # just treestruct is nested
         #     ret = ret %>% unnest()
         # }
-        return(obj$treestructs %>% tidyr::unnest(treestruct))
+        return(obj$treestructs %>% tidyr::unnest(treestruct, names_repair = "universal"))
     } else {
         return(obj$treestructs$treestruct)
     }
@@ -1024,34 +1024,34 @@ length_scaling.default <- function(ts) {
 }
 
 #' @export
-calc_per_rad_class_metrics <- function(obj) {
+calc_per_rad_class_metrics <- function(obj, ...) {
     UseMethod("calc_per_rad_class_metrics", obj)
 }
 
 #' @export
-calc_per_rad_class_metrics.BranchStructs <- function(obj, metrics = c("surf_area", "vol", "len")) {
-    obj$treestructs$per_rad_metrics = purrr::map(getTreestruct(obj, concat = F), calc_per_rad_class_metrics.default, metrics)
+calc_per_rad_class_metrics.BranchStructs <- function(obj, metrics = c("surf_area", "vol", "len"), bin_size = 0.005) {
+    obj$treestructs$per_rad_metrics = purrr::map(getTreestruct(obj, concat = F), calc_per_rad_class_metrics.default, metrics = metrics, bin_size = bin_size)
     return(obj)
 }
 
 #' @export
-calc_per_rad_class_metrics.default <- function(ts, metrics = c("surf_area", "vol", "len")) {
+calc_per_rad_class_metrics.default <- function(ts, metrics = c("surf_area", "vol", "len"), bin_size = 0.005) {
 
     perclass =
         ts %>%
         dplyr::ungroup() %>%
-        dplyr::group_by(rad_class = as.numeric(as.character(cut(rad, breaks = seq(0, ceiling(max(rad, na.rm = T)*2*100)/200, by = 0.005),
-                                                   labels = head(seq(0, ceiling(max(rad, na.rm = T)*2*100)/200, by = 0.005), -1))))) %>%
+        dplyr::group_by(rad_class = as.numeric(as.character(cut(rad, breaks = seq(0, ceiling(max(rad, na.rm = T)*2*100)/200, by = bin_size),
+                                                   labels = head(seq(0, ceiling(max(rad, na.rm = T)*2*100)/200, by = bin_size), -1))))) %>%
         dplyr::summarize_at(.vars = metrics, ~ sum(., na.rm = T))
 
     # fill classes with 0 if there aren't any branches in the smallest classes
-    # hence guaranteed to have classes popluated down to zero
+    # hence guaranteed to have classes populated down to zero
     minrad = min(perclass$rad_class, na.rm = T)
     if (minrad > 0) {
-        nrow = as.integer(minrad / 0.005)
+        nrow = as.integer(minrad / bin_size)
         fillrows = data.frame(matrix(data = 0, nrow = nrow, ncol = length(metrics) + 1))
         names(fillrows) = c("rad_class", metrics)
-        fillrows$rad_class = seq(minrad - 0.005, 0, -0.005)
+        fillrows$rad_class = seq(minrad - bin_size, 0, -bin_size)
         perclass = rbind(perclass, fillrows)
     }
 
