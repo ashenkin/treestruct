@@ -58,6 +58,7 @@ TreeStructs <- function(dataset = NA, treestructs, convert_to_meters = NA) {
             index_col = "index_num",
             furcation_col = "n_furcation", # calculated
             trees_not_branches = T, # are these QSMs trees or branches?  If trees, we do things like calculate crowns vs stems...
+            has_topology = T,
             tips_set = F,
             internodes_reordered = F,
             furcations_corrected = F,

@@ -43,7 +43,7 @@
 #' @export
 #' @rdname BranchStructs
 
-BranchStructs <- function(dataset = NA, treestructs, convert_to_meters = NA) {
+BranchStructs <- function(dataset = NA, treestructs, convert_to_meters = NA, has_topology = T) {
     # TODO allow setting of colnames
 
     stopifnot(length(dataset) == 1)
@@ -64,10 +64,11 @@ BranchStructs <- function(dataset = NA, treestructs, convert_to_meters = NA) {
             numnodes_col = "number_nodes_in_section",
             istip_col = "is_tip",
             isbroken_col = "is_broken",
-            d_child_col = "d_child",
-            d_parent_col = "d_parent",
+            d_child_col = "d_child", # top of cylinder (diameter at children)
+            d_parent_col = "d_parent", # bottom of cylinder (diameter at parents)
             ignore_error_col = "ignore_error",
             radius_col = "rad", # computed from diameters, for compatibility with TreeStructs
+            has_topology = has_topology,
             tips_set = F,
             internodes_reordered = F,
             furcations_corrected = F,
@@ -76,7 +77,7 @@ BranchStructs <- function(dataset = NA, treestructs, convert_to_meters = NA) {
 
     branchDataset = structure(branchDataset, class = "BranchStructs")
     branchDataset = setTreestruct(branchDataset, treestructs, convert_to_meters)
-    if (! branchDataset$tips_set) branchDataset = setTips(branchDataset)
+    if (! branchDataset$tips_set & branchDataset$has_topology) branchDataset = setTips(branchDataset)
     return(branchDataset)
 }
 
