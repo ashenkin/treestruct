@@ -1073,7 +1073,7 @@ run_all.BranchStructs <- function(obj, calc_dbh = F, calc_summ_cyl = F, calc_max
 #' @export
 run_all.default <- function(obj, calc_dbh = T, calc_summ_cyl = T, calc_max_height = T, make_graph_obj = T) {
     # if (! check_property(obj, "tips_set")) obj = setTips(obj)
-    if (check_property(obj, "has_toplogy")) {
+    if (check_property(obj, "has_topology")) {
         obj = setTips(obj) # always set tips for now...  not necessary if reading from source...
         obj = calc_surfarea(obj)
         obj = calc_vol(obj)
@@ -1171,6 +1171,14 @@ truncate_branches.BranchStructs <- function(obj, rad_min) {
 #' @export
 truncate_branches.default <- function(ts, rad_min) {
     return(ts[ts$rad >= rad_min,])
+}
+
+#' @export
+subset.Branchstructs <- function(obj, idx) {
+    obj = obj %>%
+        setTreestructs(getTreestructs(obj) %>%
+                          dplyr::slice(idx))
+    return(obj)
 }
 
 # Visualization ####
