@@ -160,10 +160,10 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T,
         tidyr::nest(.key = "treestruct")
 
     # reorder internodes - necessary for many operations
-    newobj = reorder_internodes(newobj)
+    if (check_property(newobj, "has_topology")) newobj = reorder_internodes(newobj)
 
     # validate treestructs
-    if (!getOption("skip_validation", default = FALSE)) {
+    if (!getOption("skip_validation", default = FALSE) & check_property(newobj, "has_topology")) {
         validation = validate_treestruct(newobj)
         valid_treestruct = validation[["all_valid"]]
         newobj = validation[["branchstructs"]]
@@ -185,7 +185,7 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T,
         }
     } else {
         warning("validation turned off, returning unvalidated BranchStructs")
-        newobj = setGraph(newobj)
+        if (check_property(newobj, "has_topology")) newobj = setGraph(newobj)
         return(newobj)
     }
 
@@ -1066,25 +1066,34 @@ run_all <- function(obj, ...) {
 #' @export
 run_all.BranchStructs <- function(obj, calc_dbh = F, calc_summ_cyl = F, calc_max_height = F, make_graph_obj = T) {
     obj = run_all.default(obj, calc_dbh, calc_summ_cyl, calc_max_height, make_graph_obj)
-    obj = calc_sa_above(obj)
+    if (check_property(obj, "has_toplogy")) obj = calc_sa_above(obj)
+    return(obj)
 }
 
 #' @export
 run_all.default <- function(obj, calc_dbh = T, calc_summ_cyl = T, calc_max_height = T, make_graph_obj = T) {
     # if (! check_property(obj, "tips_set")) obj = setTips(obj)
-    obj = setTips(obj) # always set tips for now...  not necessary if reading from source...
-    obj = calc_surfarea(obj)
-    obj = calc_vol(obj)
-    obj = calc_pathlen(obj)
-    if (calc_max_height) obj = calc_max_height(obj)
-    if (calc_dbh) obj = calc_dbh(obj)
-    obj = correct_furcations(obj)
-    obj = assign_branch_num(obj)
-    if (calc_summ_cyl) obj = calc_summary_cyls(obj)
-    obj = radius_scaling(obj)
-    obj = length_scaling(obj)
-    obj = calc_per_rad_class_metrics(obj)
-    if (make_graph_obj) obj = setGraph(obj)
+    if (check_property(obj, "has_topology")) {
+        obj = setTips(obj) # always set tips for now...  not necessary if reading from source...
+        obj = calc_surfarea(obj)
+        obj = calc_vol(obj)
+        obj = calc_pathlen(obj)
+        if (calc_max_height) obj = calc_max_height(obj)
+        if (calc_dbh) obj = calc_dbh(obj)
+        obj = correct_furcations(obj)
+        obj = assign_branch_num(obj)
+        if (calc_summ_cyl) obj = calc_summary_cyls(obj)
+        obj = radius_scaling(obj)
+        obj = length_scaling(obj)
+        obj = calc_per_rad_class_metrics(obj)
+        if (make_graph_obj) obj = setGraph(obj)
+    } else {
+        obj = calc_surfarea(obj)
+        obj = calc_vol(obj)
+        if (calc_max_height) obj = calc_max_height(obj)
+        if (calc_dbh) obj = calc_dbh(obj)
+        obj = calc_per_rad_class_metrics(obj)
+    }
     return(obj)
 }
 
@@ -1162,6 +1171,14 @@ truncate_branches.BranchStructs <- function(obj, rad_min) {
 #' @export
 truncate_branches.default <- function(ts, rad_min) {
     return(ts[ts$rad >= rad_min,])
+}
+
+#' @export
+subset.Branchstructs <- function(obj, idx) {
+    obj = obj %>%
+        setTreestructs(getTreestructs(obj) %>%
+                          dplyr::slice(idx))
+    return(obj)
 }
 
 # Visualization ####

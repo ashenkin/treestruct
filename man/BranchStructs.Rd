@@ -4,7 +4,12 @@
 \alias{BranchStructs}
 \title{BranchStructs}
 \usage{
-BranchStructs(dataset = NA, treestructs, convert_to_meters = NA)
+BranchStructs(
+  dataset = NA,
+  treestructs,
+  convert_to_meters = NA,
+  has_topology = T
+)
 }
 \arguments{
 \item{dataset}{name of dataset this object is based on}
