@@ -29,7 +29,7 @@
 #' @export
 #' @rdname TreeStructs
 
-TreeStructs <- function(dataset = NA, treestructs, convert_to_meters = NA) {
+TreeStructs <- function(dataset = NA, treestructs, convert_to_meters = NA, has_topology = T) {
     # TODO allow setting of colnames
 
     stopifnot(length(dataset) == 1)
@@ -58,7 +58,7 @@ TreeStructs <- function(dataset = NA, treestructs, convert_to_meters = NA) {
             index_col = "index_num",
             furcation_col = "n_furcation", # calculated
             trees_not_branches = T, # are these QSMs trees or branches?  If trees, we do things like calculate crowns vs stems...
-            has_topology = T,
+            has_topology = has_topology,
             tips_set = F,
             internodes_reordered = F,
             furcations_corrected = F,
