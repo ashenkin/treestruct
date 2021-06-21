@@ -1076,7 +1076,7 @@ run_all <- function(obj, ...) {
 #' @export
 run_all.BranchStructs <- function(obj, calc_dbh = F, calc_summ_cyl = F, calc_max_height = F, make_graph_obj = T) {
     obj = run_all.default(obj, calc_dbh, calc_summ_cyl, calc_max_height, make_graph_obj)
-    if (check_property(obj, "has_toplogy")) obj = calc_sa_above(obj)
+    if (check_property(obj, "has_topology")) obj = calc_sa_above(obj)
     return(obj)
 }
 
