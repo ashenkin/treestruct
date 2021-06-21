@@ -133,7 +133,7 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T,
 
     # convert units to meters
     if (convert_to_meters) {
-        if (is.logical(convert_to_meters)) { #default conversion
+        if (is.logical(convert_to_meters) & convert_to_meters) { #default conversion
             treestructs = treestructs %>%
                                          dplyr::mutate(
                                              !!rlang::sym(obj$length_col) := !!rlang::sym(obj$length_col) / 100, # hand-measured lengths are in cm.  Convert to meters.
@@ -142,7 +142,9 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T,
                                              # add radius column for compatibility with TreeStructs
                                              !!rlang::sym(obj$radius_col) := (!!rlang::sym(obj$d_parent_col) + !!rlang::sym(obj$d_child_col)) / 2 / 2 # mean of parent+child, div by 2 for radius instead of diameter
                                          )
-        } else { # convert_to_meters is the amount to divide by to get meters.  cm = 100, mm = 1000, etc.
+
+        } else {
+            # convert_to_meters is the amount to divide by to get meters.  cm = 100, mm = 1000, etc.
             treestructs = treestructs %>%
                 dplyr::mutate(
                     !!rlang::sym(obj$length_col) := !!rlang::sym(obj$length_col) / convert_to_meters,
@@ -152,6 +154,14 @@ setTreestruct.BranchStructs <- function(obj, treestructs, convert_to_meters = T,
                     !!rlang::sym(obj$radius_col) := (!!rlang::sym(obj$d_parent_col) + !!rlang::sym(obj$d_child_col)) / 2 / 2 # mean of parent+child, div by 2 for radius instead of diameter
                 )
         }
+    }
+
+    else { # convert_to_meters = F
+        treestructs = treestructs %>%
+            dplyr::mutate(
+                # add radius column for compatibility with TreeStructs
+                !!rlang::sym(obj$radius_col) := (!!rlang::sym(obj$d_parent_col) + !!rlang::sym(obj$d_child_col)) / 2 / 2 # mean of parent+child, div by 2 for radius instead of diameter
+            )
     }
 
     # create nested dataframe that is the central piece of the object
@@ -1066,7 +1076,7 @@ run_all <- function(obj, ...) {
 #' @export
 run_all.BranchStructs <- function(obj, calc_dbh = F, calc_summ_cyl = F, calc_max_height = F, make_graph_obj = T) {
     obj = run_all.default(obj, calc_dbh, calc_summ_cyl, calc_max_height, make_graph_obj)
-    if (check_property(obj, "has_toplogy")) obj = calc_sa_above(obj)
+    if (check_property(obj, "has_topology")) obj = calc_sa_above(obj)
     return(obj)
 }
 

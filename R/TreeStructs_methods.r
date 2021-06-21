@@ -624,10 +624,10 @@ length_scaling.TreeStructs <- function(obj) {
 #' @export
 run_all.TreeStructs <- function(obj, calc_dbh = T, ...) {
     if (! obj$trees_not_branches) calc_dbh = F
-    obj = assign_cyls_to_crown(obj)
-    obj = make_convhull(obj) # convhull won't work on hand measured branches
+    if (check_property(obj, "has_topology")) obj = assign_cyls_to_crown(obj)
+    if (check_property(obj, "has_topology")) obj = make_convhull(obj) # convhull won't work on hand measured branches
     obj = run_all.default(obj, calc_dbh, ...)
-    obj = calc_sa_above(obj)
+    if (check_property(obj, "has_topology")) obj = calc_sa_above(obj)
     return(obj)
 }
 
