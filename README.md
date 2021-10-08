@@ -17,3 +17,5 @@ my_qsms = run_all(my_qsms)  # run all architectural analyses
 my_qsms = parse_id(my_qsms, treetag_regex = ".*(?=\\.mat)", nobranchcode = T)  # set tree tag in the data structure
 my_treestructs = getTreestructs(my_qsms)  # take a look at the resulting data
 ```
+
+This software is released under the CC-BY-NC-SA-4.0 license.  See https://creativecommons.org/licenses/by-nc-sa/4.0/ .
