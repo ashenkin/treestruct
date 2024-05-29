@@ -594,7 +594,7 @@ make_convhull.default <- function(ts, trees_not_branches) {
     }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 
     # if crown has too few points to make convhull, then treat as undefined
-    if (is.na(this_convhull)) crown_defined = F
+    if (any(is.na(this_convhull))) crown_defined = F
 
     return(list(convhull = this_convhull,
                 convhull2d = this_2dconvhull,
